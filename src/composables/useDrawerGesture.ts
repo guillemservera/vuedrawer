@@ -244,12 +244,10 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 		// Keep active drags alive so the touchend fallback can finish the close gesture.
 		const handleWindowScroll = () => {
 			if (pointerId.value === null) return
-			if (isDragging.value) {
-				logDrawerDebug(debugId, 'window:scroll-while-dragging', { pointerId: pointerId.value })
-				return
-			}
-			logDrawerDebug(debugId, 'window:scroll-interrupt', { pointerId: pointerId.value })
-			settleInterruptedGesture()
+			logDrawerDebug(debugId, 'window:scroll-while-pointer-active', {
+				isDragging: isDragging.value,
+				pointerId: pointerId.value,
+			})
 		}
 
 		window.addEventListener('pointerup', handleWindowPointerUp, { passive: true })

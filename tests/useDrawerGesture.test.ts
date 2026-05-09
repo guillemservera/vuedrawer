@@ -549,6 +549,11 @@ describe('useDrawerGesture', () => {
 		expect(exposed.isDragging.value).toBe(false)
 		expect(blockedMove.defaultPrevented).toBe(false)
 
+		window.dispatchEvent(new Event('scroll'))
+
+		expect(exposed.requestOpenChange).not.toHaveBeenCalled()
+		expect(exposed.isDragging.value).toBe(false)
+
 		exposed.scrollArea.scrollTop = 0
 
 		const closeMove = createPointerEvent('pointermove', exposed.item, 1, 140)
