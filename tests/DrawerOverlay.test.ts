@@ -42,7 +42,7 @@ const Harness = defineComponent({
 	template: `
 		<DrawerRoot v-model:open="open">
 			<DrawerOverlay />
-			<DrawerContent />
+			<DrawerContent aria-label="Test drawer" />
 			<ContextProbe ref="probe" />
 		</DrawerRoot>
 	`,

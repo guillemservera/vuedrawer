@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onErrorCaptured, ref, useAttrs, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onErrorCaptured, ref, useAttrs, watch } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import { useDrawerAriaIsolation } from '../composables/useDrawerAriaIsolation'
 import { useDrawerDismissableLayer } from '../composables/useDrawerDismissableLayer'
@@ -19,6 +19,7 @@ const attrs = useAttrs()
 const root = useDrawerRootContext()
 const lastKnownPointerEvent = ref<PointerEvent | null>(null)
 const emit = defineEmits<DrawerContentEmits>()
+let hasWarnedMissingAccessibleName = false
 
 onErrorCaptured((error, instance, info) => {
 	emit('error', error, instance, info)
@@ -40,6 +41,11 @@ const resolvedAriaLabelledBy = computed(() => {
 	return root.titleId.value
 })
 const resolvedAriaDescribedBy = computed(() => getAttributeString(attrs['aria-describedby']) ?? root.descriptionId.value)
+const hasAccessibleName = computed(() => {
+	const ariaLabel = getAttributeString(attrs['aria-label'])?.trim()
+	const ariaLabelledBy = resolvedAriaLabelledBy.value?.trim()
+	return Boolean(ariaLabel || ariaLabelledBy)
+})
 const leaveActiveClass = computed(() => {
 	const classes = ['drawer-content-leave-active', `drawer-content-leave-active--${closeAnimation.value}`]
 	if (shouldUseInstantLeave.value) {
@@ -52,6 +58,17 @@ const leaveToClass = computed(() => `drawer-content-leave-to drawer-content-leav
 function getAttributeString(value: unknown) {
 	if (value === undefined || value === null || value === false) return undefined
 	return String(value)
+}
+
+async function warnMissingAccessibleName() {
+	if (!import.meta.env.DEV || hasWarnedMissingAccessibleName || !root.open.value) return
+
+	await nextTick()
+	await nextTick()
+
+	if (hasWarnedMissingAccessibleName || !root.open.value || hasAccessibleName.value) return
+	hasWarnedMissingAccessibleName = true
+	console.warn('[vuedrawer] DrawerContent needs an accessible name. Add DrawerTitle, aria-label, or aria-labelledby.')
 }
 
 const {
@@ -194,6 +211,10 @@ watch(resolvedContentId, (id, previousId) => {
 	}
 	root.registerContentId(id)
 }, { immediate: true })
+
+watch([() => root.open.value, hasAccessibleName], () => {
+	void warnMissingAccessibleName()
+}, { flush: 'post', immediate: true })
 
 onBeforeUnmount(() => {
 	root.unregisterContentId(resolvedContentId.value)

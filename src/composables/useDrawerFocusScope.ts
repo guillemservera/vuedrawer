@@ -32,6 +32,8 @@ export function useDrawerFocusScope(options: UseDrawerFocusScopeOptions) {
 	let previouslyFocusedElement: HTMLElement | null = null
 	let lastFocusedElement: HTMLElement | null = null
 	let mutationObserver: MutationObserver | null = null
+	let isRestoringFocus = false
+	let pendingFocusRestore = false
 
 	function rememberPreviousFocus() {
 		if (typeof document === 'undefined') return
@@ -40,7 +42,13 @@ export function useDrawerFocusScope(options: UseDrawerFocusScopeOptions) {
 	}
 
 	function focusElement(element: HTMLElement | null) {
-		element?.focus?.({ preventScroll: true })
+		if (!element || document.activeElement === element) return
+
+		isRestoringFocus = true
+		element.focus({ preventScroll: true })
+		queueMicrotask(() => {
+			isRestoringFocus = false
+		})
 	}
 
 	function getFocusableCandidates(container: HTMLElement) {
@@ -65,6 +73,20 @@ export function useDrawerFocusScope(options: UseDrawerFocusScopeOptions) {
 		focusElement(getFallbackFocusTarget(container))
 	}
 
+	function requestFocusInside(container: HTMLElement) {
+		if (pendingFocusRestore || isRestoringFocus) return
+		pendingFocusRestore = true
+
+		queueMicrotask(() => {
+			pendingFocusRestore = false
+			if (!enabled.value) return
+			const activeElement = document.activeElement
+			if (activeElement instanceof HTMLElement && container.contains(activeElement)) return
+
+			focusLastKnownOrFirst(container)
+		})
+	}
+
 	function installTrap(container: HTMLElement) {
 		if (typeof document === 'undefined') return () => {}
 
@@ -76,7 +98,7 @@ export function useDrawerFocusScope(options: UseDrawerFocusScopeOptions) {
 				return
 			}
 
-			focusLastKnownOrFirst(container)
+			requestFocusInside(container)
 		}
 
 		function handleFocusOut(event: FocusEvent) {
@@ -85,7 +107,7 @@ export function useDrawerFocusScope(options: UseDrawerFocusScopeOptions) {
 			if (relatedTarget === null) return
 			if (relatedTarget instanceof HTMLElement && container.contains(relatedTarget)) return
 
-			focusLastKnownOrFirst(container)
+			requestFocusInside(container)
 		}
 
 		function handleMutations(mutations: MutationRecord[]) {
@@ -159,6 +181,8 @@ export function useDrawerFocusScope(options: UseDrawerFocusScopeOptions) {
 		const target = previouslyFocusedElement
 		previouslyFocusedElement = null
 		lastFocusedElement = null
+		pendingFocusRestore = false
+		isRestoringFocus = false
 
 		if (event.defaultPrevented || !shouldRestoreFocus.value) return
 		focusElement(target)

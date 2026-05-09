@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import DrawerContent from '../src/components/DrawerContent.vue'
+import { clearDrawerDismissableLayersForTest } from '../src/composables/useDrawerDismissableLayer'
 import { clearEscapeLayersForTest } from '../src/composables/useDrawerEscapeLayer'
 
 const gestureHandlers = vi.hoisted(() => ({
@@ -94,9 +95,11 @@ describe('DrawerContent', () => {
 		rootContext.closeAnimation.value = 'fade'
 		rootContext.closeAnimationOverride.value = null
 		rootContext.skipCloseAnimation.value = false
+		rootContext.titleId.value = 'vuedrawer-test-title'
 	})
 
 	afterEach(() => {
+		clearDrawerDismissableLayersForTest()
 		clearEscapeLayersForTest()
 	})
 

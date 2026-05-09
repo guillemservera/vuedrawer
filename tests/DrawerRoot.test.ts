@@ -41,7 +41,7 @@ const Harness = defineComponent({
 	template: `
 		<DrawerRoot v-model:open="open">
 			<DrawerOverlay />
-			<DrawerContent />
+			<DrawerContent aria-label="Test drawer" />
 			<ContextProbe ref="probe" />
 		</DrawerRoot>
 	`,
@@ -63,7 +63,7 @@ const InstantCloseHarness = defineComponent({
 	template: `
 		<DrawerRoot v-model:open="open">
 			<DrawerOverlay style="--drawer-duration: 1ms; --drawer-duration-ms: 1;" />
-			<DrawerContent style="--drawer-duration: 1ms; --drawer-duration-ms: 1;" />
+			<DrawerContent aria-label="Test drawer" style="--drawer-duration: 1ms; --drawer-duration-ms: 1;" />
 			<ContextProbe ref="probe" />
 		</DrawerRoot>
 	`,
@@ -88,7 +88,7 @@ const ForcedInstantCloseHarness = defineComponent({
 			:instant-close="true"
 		>
 			<DrawerOverlay />
-			<DrawerContent />
+			<DrawerContent aria-label="Test drawer" />
 			<ContextProbe ref="probe" />
 		</DrawerRoot>
 	`,
@@ -113,7 +113,7 @@ const FadeAnimationHarness = defineComponent({
 			animation="fade"
 		>
 			<DrawerOverlay />
-			<DrawerContent />
+			<DrawerContent aria-label="Test drawer" />
 			<ContextProbe ref="probe" />
 		</DrawerRoot>
 	`,
@@ -133,7 +133,7 @@ const SnapPointsHarness = defineComponent({
 			:default-snap-point="1"
 		>
 			<DrawerOverlay />
-			<DrawerContent />
+			<DrawerContent aria-label="Test drawer" />
 			<ContextProbe ref="probe" />
 		</DrawerRoot>
 	`,
@@ -160,7 +160,7 @@ const ControlledSnapPointsHarness = defineComponent({
 			:fade-from-index="1"
 		>
 			<DrawerOverlay />
-			<DrawerContent />
+			<DrawerContent aria-label="Test drawer" />
 			<ContextProbe ref="probe" />
 		</DrawerRoot>
 	`,

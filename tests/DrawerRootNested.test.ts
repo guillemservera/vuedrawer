@@ -38,10 +38,10 @@ const Harness = defineComponent({
 	template: `
 		<DrawerRoot v-model:open="open">
 			<DrawerOverlay />
-			<DrawerContent />
+			<DrawerContent aria-label="Parent drawer" />
 			<DrawerRootNested v-model:open="childOpen">
 				<DrawerOverlay />
-				<DrawerContent />
+				<DrawerContent aria-label="Nested drawer" />
 				<div />
 			</DrawerRootNested>
 		</DrawerRoot>
@@ -76,11 +76,11 @@ const NestedInstantHarness = defineComponent({
 	template: `
 		<DrawerRoot v-model:open="open">
 			<DrawerOverlay />
-			<DrawerContent />
+			<DrawerContent aria-label="Parent drawer" />
 			<ContextProbe ref="parentProbe" />
 			<DrawerRootNested v-model:open="childOpen">
 				<DrawerOverlay />
-				<DrawerContent />
+				<DrawerContent aria-label="Nested drawer" />
 				<ContextProbe ref="childProbe" />
 			</DrawerRootNested>
 		</DrawerRoot>

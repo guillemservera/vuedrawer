@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { defineComponent, nextTick, ref } from 'vue'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import DrawerClose from '../src/components/DrawerClose.vue'
 import DrawerContent from '../src/components/DrawerContent.vue'
@@ -23,8 +23,13 @@ vi.mock('../src/utils/drawerDebug', () => ({
 }))
 
 describe('Drawer accessibility primitives', () => {
+	beforeEach(() => {
+		vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+	})
+
 	afterEach(() => {
 		clearDrawerDismissableLayersForTest()
+		vi.restoreAllMocks()
 	})
 
 	it('links title and description to dialog content automatically', async () => {
@@ -410,5 +415,65 @@ describe('Drawer accessibility primitives', () => {
 
 		wrapper.unmount()
 		outside.remove()
+	})
+
+	it('warns in dev when content opens without an accessible name', async () => {
+		const Harness = defineComponent({
+			components: {
+				DrawerContent,
+				DrawerRoot,
+			},
+			template: `
+				<DrawerRoot default-open>
+					<DrawerContent />
+				</DrawerRoot>
+			`,
+		})
+
+		const wrapper = mount(Harness, {
+			global: {
+				stubs: {
+					Transition: false,
+				},
+			},
+		})
+
+		await nextTick()
+		await nextTick()
+		await nextTick()
+
+		expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('accessible name'))
+
+		wrapper.unmount()
+	})
+
+	it('does not warn when content has an aria-label name', async () => {
+		const Harness = defineComponent({
+			components: {
+				DrawerContent,
+				DrawerRoot,
+			},
+			template: `
+				<DrawerRoot default-open>
+					<DrawerContent aria-label="Account filters" />
+				</DrawerRoot>
+			`,
+		})
+
+		const wrapper = mount(Harness, {
+			global: {
+				stubs: {
+					Transition: false,
+				},
+			},
+		})
+
+		await nextTick()
+		await nextTick()
+		await nextTick()
+
+		expect(console.warn).not.toHaveBeenCalled()
+
+		wrapper.unmount()
 	})
 })
