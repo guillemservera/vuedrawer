@@ -544,7 +544,6 @@ describe('useDrawerGesture', () => {
 		const blockedMove = createPointerEvent('pointermove', exposed.item, 1, 90)
 		exposed.gesture.handlePointerDown(createPointerEvent('pointerdown', exposed.item, 1, 0))
 		exposed.gesture.handlePointerMove(blockedMove)
-		exposed.gesture.handlePointerUp(createPointerEvent('pointerup', exposed.item, 1, 90))
 
 		expect(exposed.requestOpenChange).not.toHaveBeenCalled()
 		expect(exposed.isDragging.value).toBe(false)
@@ -552,10 +551,9 @@ describe('useDrawerGesture', () => {
 
 		exposed.scrollArea.scrollTop = 0
 
-		const closeMove = createPointerEvent('pointermove', exposed.item, 2, 140)
-		exposed.gesture.handlePointerDown(createPointerEvent('pointerdown', exposed.item, 2, 0))
+		const closeMove = createPointerEvent('pointermove', exposed.item, 1, 140)
 		exposed.gesture.handlePointerMove(closeMove)
-		exposed.gesture.handlePointerUp(createPointerEvent('pointerup', exposed.item, 2, 140))
+		exposed.gesture.handlePointerUp(createPointerEvent('pointerup', exposed.item, 1, 140))
 
 		expect(exposed.requestOpenChange).toHaveBeenCalledWith(false)
 		expect(closeMove.defaultPrevented).toBe(true)

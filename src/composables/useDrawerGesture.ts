@@ -93,6 +93,7 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 	const lastPreventedDragAt = ref(0)
 	const hasExceededDragThreshold = ref(false)
 	const hasCommittedSwipeDirection = ref(false)
+	const isAllowedToDrag = ref(false)
 	const dragBaseOffset = ref(0)
 	const currentOffset = ref(0)
 	const touchEndFallbackTimer = ref<number | null>(null)
@@ -135,6 +136,7 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 		pointerStartTime.value = 0
 		hasExceededDragThreshold.value = false
 		hasCommittedSwipeDirection.value = false
+		isAllowedToDrag.value = false
 		isDragging.value = false
 		dragBaseOffset.value = 0
 		currentOffset.value = 0
@@ -657,17 +659,23 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 			? Math.max(DRAWER_DRAG_ACTIVATION_PX, 10)
 			: DRAWER_DRAG_ACTIVATION_PX
 
-		if (!hasExceededDragThreshold.value) {
-			if (Math.abs(rawDistance) < activationThreshold) return
-			hasExceededDragThreshold.value = true
+		if (Math.abs(rawDistance) < activationThreshold) return
 
+		if (!hasExceededDragThreshold.value) {
+			hasExceededDragThreshold.value = true
+		}
+
+		if (!isAllowedToDrag.value) {
 			if (!shouldAllowDrag(pointerTarget.value, closeDistance)) {
 				logDrawerDebug(debugId, 'gesture:drag-blocked', {
 					closeDistance: Math.round(closeDistance),
 				})
-				cleanupGestureState()
 				return
 			}
+
+			// Match Vaul's scroll handoff: a gesture that starts while inner content
+			// is scrolling can become a drawer drag later in the same touch sequence.
+			isAllowedToDrag.value = true
 		}
 
 		if (event.cancelable) {

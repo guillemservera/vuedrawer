@@ -101,11 +101,6 @@
 	touch-action: auto;
 }
 
-.drawer-content[data-drawer-scroll-axis='y'],
-.drawer-content [data-drawer-scroll-axis='y'] {
-	touch-action: auto;
-}
-
 .drawer-content[data-drawer-scroll-axis='x'],
 .drawer-content [data-drawer-scroll-axis='x'] {
 	touch-action: pan-x;
