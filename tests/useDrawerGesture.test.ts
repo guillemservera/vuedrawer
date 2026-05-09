@@ -317,7 +317,7 @@ describe('useDrawerGesture', () => {
 		wrapper.unmount()
 	})
 
-	it('keeps an active close drag alive through viewport scroll and finalizes from touchend', async () => {
+	it('settles an active close drag when the viewport takes over the gesture', async () => {
 		setImmediateTransitionResolution(false)
 		const Harness = defineComponent({
 			setup(_, { expose }) {
@@ -416,27 +416,20 @@ describe('useDrawerGesture', () => {
 		window.dispatchEvent(new Event('scroll'))
 
 		expect(exposed.requestOpenChange).not.toHaveBeenCalled()
-		expect(exposed.isDragging.value).toBe(true)
-		expect(exposed.content.style.transition).toBe('none')
-		expect(exposed.content.style.transform).toBe(getTranslateStyles('bottom', 80))
+		expect(exposed.isDragging.value).toBe(false)
+		expect(exposed.content.style.transition).toBe('transform 420ms ease')
+		expect(exposed.content.style.transform).toBe(getTranslateStyles('bottom', 0))
+		expect(exposed.overlay.style.transition).toBe('opacity 420ms ease')
+		expect(exposed.overlay.style.opacity).toBe('1')
 
 		window.dispatchEvent(new Event('touchend'))
 		await new Promise(resolve => setTimeout(resolve, 0))
 
-		expect(exposed.requestOpenChange).toHaveBeenCalledWith(false)
-		expect(exposed.isDragging.value).toBe(false)
-		expect(exposed.content.style.transition).toBe('transform 420ms ease')
-		expect(exposed.content.style.transform).toBe(getClosedTransform('bottom'))
-		expect(exposed.overlay.style.transition).toBe('opacity 420ms ease')
-		expect(exposed.overlay.style.opacity).toBe('0')
-		expect(exposed.content.style.pointerEvents).toBe('none')
-		expect(exposed.overlay.style.pointerEvents).toBe('none')
+		expect(exposed.requestOpenChange).not.toHaveBeenCalled()
 
 		flushTransitionCallbacks()
 
-		expect(exposed.content.style.transition).toBe('')
-		expect(exposed.content.style.transform).toBe(getClosedTransform('bottom'))
-		expect(exposed.resetInteractiveState).not.toHaveBeenCalled()
+		expect(exposed.resetInteractiveState).toHaveBeenCalled()
 
 		wrapper.unmount()
 	})

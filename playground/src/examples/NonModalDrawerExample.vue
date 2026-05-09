@@ -4,18 +4,16 @@ import {
 	DrawerContent,
 	DrawerDescription,
 	DrawerHandle,
-	DrawerOverlay,
 	DrawerPortal,
 	DrawerRoot,
 	DrawerTitle,
 } from 'vuedrawer'
-import { contentClass, handleClass, overlayClass } from './demoClasses'
+import { contentClass, handleClass } from './demoClasses'
 
 const props = defineProps<{ styled: boolean }>()
 const open = ref(false)
 const backgroundClicks = ref(0)
 const content = computed(() => contentClass(props.styled, 'right'))
-const overlay = computed(() => overlayClass(props.styled))
 const handle = computed(() => handleClass(props.styled))
 </script>
 
@@ -37,7 +35,6 @@ const handle = computed(() => handleClass(props.styled))
 
 		<DrawerRoot v-model:open="open" direction="right" :modal="false">
 			<DrawerPortal>
-				<DrawerOverlay :class="overlay" />
 				<DrawerContent :class="content">
 					<DrawerHandle :class="handle" />
 					<DrawerTitle class="demo-title">Non-modal tools</DrawerTitle>

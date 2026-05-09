@@ -84,7 +84,6 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 
 	const pointerId = ref<number | null>(null)
 	const pointerTarget = ref<EventTarget | null>(null)
-	const lastPointerEvent = ref<PointerEvent | null>(null)
 	const pointerCaptureElement = ref<HTMLElement | null>(null)
 	const pointerStartPosition = ref<{ x: number, y: number } | null>(null)
 	const pointerStart = ref(0)
@@ -128,7 +127,6 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 		const captureElement = pointerCaptureElement.value
 		pointerId.value = null
 		pointerTarget.value = null
-		lastPointerEvent.value = null
 		pointerCaptureElement.value = null
 		pointerStartPosition.value = null
 		pointerStart.value = 0
@@ -145,18 +143,7 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 	function finalizeTouchGestureFromFallback() {
 		touchEndFallbackTimer.value = null
 		if (pointerId.value === null) return
-
-		const event = lastPointerEvent.value
-		if (!event) {
-			settleInterruptedGesture()
-			return
-		}
-
-		logDrawerDebug(debugId, 'gesture:touchend-finalize-last-pointer', {
-			pointerId: pointerId.value,
-			axisDistance: Math.round(getAxisDistance(event, direction.value)),
-		})
-		finalizeGesture(event)
+		settleInterruptedGesture()
 	}
 
 	function forceCloseAfterInterruptedGesture() {
@@ -243,10 +230,6 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 		// active, force the gesture to settle instead of leaving stale transforms/pointer state.
 		const handleWindowScroll = () => {
 			if (pointerId.value === null) return
-			if (isDragging.value) {
-				logDrawerDebug(debugId, 'window:scroll-while-dragging', { pointerId: pointerId.value })
-				return
-			}
 			logDrawerDebug(debugId, 'window:scroll-interrupt', { pointerId: pointerId.value })
 			settleInterruptedGesture()
 		}
@@ -596,7 +579,6 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 
 		pointerId.value = event.pointerId
 		pointerTarget.value = event.target
-		lastPointerEvent.value = event
 		pointerCaptureElement.value = event.target instanceof HTMLElement
 			? event.target
 			: contentElement.value
@@ -618,7 +600,6 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 
 	function handlePointerMove(event: PointerEvent) {
 		if (pointerId.value !== event.pointerId || !contentElement.value) return
-		lastPointerEvent.value = event
 
 		const pointerStartPositionValue = pointerStartPosition.value
 		if (pointerStartPositionValue) {
@@ -695,7 +676,6 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 
 	function handlePointerUp(event: PointerEvent) {
 		if (pointerId.value !== event.pointerId) return
-		lastPointerEvent.value = event
 		logDrawerDebug(debugId, 'pointerup', {
 			pointerId: event.pointerId,
 			axisDistance: Math.round(getAxisDistance(event, direction.value)),
