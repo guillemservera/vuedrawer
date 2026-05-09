@@ -1,0 +1,533 @@
+import { mount } from '@vue/test-utils'
+import { defineComponent, nextTick, ref } from 'vue'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getClosedTransform, getTranslateStyles } from '../src/utils/drawerConstants'
+import { useDrawerGesture } from '../src/composables/useDrawerGesture'
+
+const {
+	clearTransitionCallbacks,
+	flushTransitionCallbacks,
+	setImmediateTransitionResolution,
+	waitForDrawerTransitionMock,
+} = vi.hoisted(() => {
+	let resolveImmediately = true
+	const callbacks: Array<() => void> = []
+
+	return {
+		waitForDrawerTransitionMock: vi.fn((_element: HTMLElement, _propertyName: 'transform' | 'opacity', callback: () => void) => {
+			if (resolveImmediately) {
+				callback()
+			}
+			else {
+				callbacks.push(callback)
+			}
+			return () => undefined
+		}),
+		setImmediateTransitionResolution(value: boolean) {
+			resolveImmediately = value
+		},
+		flushTransitionCallbacks() {
+			const queuedCallbacks = callbacks.splice(0, callbacks.length)
+			for (const callback of queuedCallbacks) {
+				callback()
+			}
+		},
+		clearTransitionCallbacks() {
+			resolveImmediately = true
+			callbacks.splice(0, callbacks.length)
+		},
+	}
+})
+
+vi.mock('../src/utils/drawerDebug', () => ({
+	logDrawerDebug: () => undefined,
+}))
+
+vi.mock('../src/utils/drawerDom', async () => {
+	const actual = await vi.importActual<typeof import('../src/utils/drawerDom')>('../src/utils/drawerDom')
+	return {
+		...actual,
+		waitForDrawerTransition: waitForDrawerTransitionMock,
+	}
+})
+
+function createPointerEvent(
+	type: string,
+	target: HTMLElement,
+	pointerId: number,
+	clientY: number,
+) {
+	const event = new PointerEvent(type, {
+		bubbles: true,
+		cancelable: true,
+		pointerId,
+		pointerType: 'touch',
+		clientX: 0,
+		clientY,
+	})
+
+	Object.defineProperty(event, 'target', {
+		configurable: true,
+		value: target,
+	})
+
+	return event
+}
+
+describe('useDrawerGesture', () => {
+	beforeEach(() => {
+		waitForDrawerTransitionMock.mockClear()
+		clearTransitionCallbacks()
+		document.body.style.pointerEvents = 'none'
+	})
+
+	it('keeps pointer events disabled during the post-gesture leave while clearing inline transitions', () => {
+		setImmediateTransitionResolution(true)
+		const Harness = defineComponent({
+			setup(_, { expose }) {
+				let capturedPointerId: number | null = null
+				const content = document.createElement('div')
+				const overlay = document.createElement('div')
+
+				Object.assign(content, {
+					setPointerCapture: vi.fn((pointerId: number) => {
+						capturedPointerId = pointerId
+					}),
+					hasPointerCapture: vi.fn((pointerId: number) => capturedPointerId === pointerId),
+					releasePointerCapture: vi.fn((pointerId: number) => {
+						if (capturedPointerId === pointerId) {
+							capturedPointerId = null
+						}
+					}),
+				})
+
+				const open = ref(true)
+				const gestureClosing = ref(false)
+				const isDragging = ref(false)
+				const preventCloseAutoFocusOnce = ref(false)
+				const skipCloseAnimation = ref(false)
+				const requestOpenChange = vi.fn((value: boolean) => {
+					open.value = value
+				})
+
+				const gesture = useDrawerGesture({
+					debugId: 'bottom#test',
+					open,
+					openedAt: ref(Date.now() - 1000),
+					direction: ref('bottom'),
+					dismissible: ref(true),
+					closeThreshold: ref(0.25),
+					scrollLockTimeout: ref(500),
+					snapToSequentialPoint: ref(false),
+					hasSnapPoints: ref(false),
+					activeSnapPointIndex: ref(0),
+					fadeFromIndex: ref<number | undefined>(undefined),
+					contentElement: ref(content),
+					overlayElement: ref(overlay),
+					isDragging,
+					gestureClosing,
+					preventCloseAutoFocusOnce,
+					requestOpenChange,
+					setSkipCloseAnimation(value: boolean) {
+						skipCloseAnimation.value = value
+					},
+						setGestureClosing(value: boolean) {
+							gestureClosing.value = value
+							if (value) {
+								isDragging.value = false
+							}
+						},
+						emitDrag: vi.fn(),
+						emitRelease: vi.fn(),
+						getContentTransition: () => 'transform 420ms ease',
+					getOverlayTransition: () => 'opacity 420ms ease',
+					getVisibleDrawerSize: () => 320,
+					getSnapPointsOffset: () => [],
+					getRestingOffset: () => 0,
+					getRestingOverlayOpacity: () => 1,
+					animateToSnapPoint: () => undefined,
+					parentContext: null,
+					resetInteractiveState: () => undefined,
+				})
+
+				expose({
+					content,
+					overlay,
+					gesture,
+					gestureClosing,
+					open,
+					preventCloseAutoFocusOnce,
+					requestOpenChange,
+					setOpen(value: boolean) {
+						open.value = value
+					},
+					skipCloseAnimation,
+				})
+
+				return () => null
+			},
+		})
+
+		const wrapper = mount(Harness)
+		const exposed = wrapper.vm.$.exposed as {
+			content: HTMLElement
+			overlay: HTMLElement
+			gesture: ReturnType<typeof useDrawerGesture>
+			gestureClosing: { value: boolean }
+			open: { value: boolean }
+			preventCloseAutoFocusOnce: { value: boolean }
+			requestOpenChange: ReturnType<typeof vi.fn>
+			setOpen: (value: boolean) => void
+			skipCloseAnimation: { value: boolean }
+		}
+
+		exposed.gesture.handlePointerDown(createPointerEvent('pointerdown', exposed.content, 1, 0))
+		exposed.gesture.handlePointerMove(createPointerEvent('pointermove', exposed.content, 1, 140))
+		exposed.gesture.handlePointerUp(createPointerEvent('pointerup', exposed.content, 1, 140))
+
+		expect(exposed.requestOpenChange).toHaveBeenCalledWith(false)
+		expect(exposed.skipCloseAnimation.value).toBe(true)
+		expect(exposed.gestureClosing.value).toBe(false)
+		expect(exposed.preventCloseAutoFocusOnce.value).toBe(true)
+		expect(document.body.style.pointerEvents).toBe('auto')
+		expect(exposed.content.style.transition).toBe('')
+		expect(exposed.overlay.style.transition).toBe('')
+		expect(exposed.content.style.transform).toBe(getClosedTransform('bottom'))
+		expect(exposed.overlay.style.opacity).toBe('0')
+		expect(exposed.content.style.pointerEvents).toBe('none')
+		expect(exposed.overlay.style.pointerEvents).toBe('none')
+		expect(waitForDrawerTransitionMock).toHaveBeenCalled()
+
+		wrapper.unmount()
+	})
+
+	it('ignores stale gesture-close cleanup when the drawer reopens before the old transition settles', async () => {
+		setImmediateTransitionResolution(false)
+		const Harness = defineComponent({
+			setup(_, { expose }) {
+				let capturedPointerId: number | null = null
+				const content = document.createElement('div')
+				const overlay = document.createElement('div')
+
+				Object.assign(content, {
+					setPointerCapture: vi.fn((pointerId: number) => {
+						capturedPointerId = pointerId
+					}),
+					hasPointerCapture: vi.fn((pointerId: number) => capturedPointerId === pointerId),
+					releasePointerCapture: vi.fn((pointerId: number) => {
+						if (capturedPointerId === pointerId) {
+							capturedPointerId = null
+						}
+					}),
+				})
+
+				const open = ref(true)
+				const gestureClosing = ref(false)
+				const isDragging = ref(false)
+				const preventCloseAutoFocusOnce = ref(false)
+				const skipCloseAnimation = ref(false)
+
+				const gesture = useDrawerGesture({
+					debugId: 'bottom#test',
+					open,
+					openedAt: ref(Date.now() - 1000),
+					direction: ref('bottom'),
+					dismissible: ref(true),
+					closeThreshold: ref(0.25),
+					scrollLockTimeout: ref(500),
+					snapToSequentialPoint: ref(false),
+					hasSnapPoints: ref(false),
+					activeSnapPointIndex: ref(0),
+					fadeFromIndex: ref<number | undefined>(undefined),
+					contentElement: ref(content),
+					overlayElement: ref(overlay),
+					isDragging,
+					gestureClosing,
+					preventCloseAutoFocusOnce,
+					requestOpenChange(value: boolean) {
+						open.value = value
+					},
+					setSkipCloseAnimation(value: boolean) {
+						skipCloseAnimation.value = value
+					},
+						setGestureClosing(value: boolean) {
+							gestureClosing.value = value
+							if (value) {
+								isDragging.value = false
+							}
+						},
+						emitDrag: vi.fn(),
+						emitRelease: vi.fn(),
+						getContentTransition: () => 'transform 420ms ease',
+					getOverlayTransition: () => 'opacity 420ms ease',
+					getVisibleDrawerSize: () => 320,
+					getSnapPointsOffset: () => [],
+					getRestingOffset: () => 0,
+					getRestingOverlayOpacity: () => 1,
+					animateToSnapPoint: () => undefined,
+					parentContext: null,
+					resetInteractiveState: () => undefined,
+				})
+
+				expose({
+					content,
+					overlay,
+					gesture,
+					gestureClosing,
+					setOpen(value: boolean) {
+						open.value = value
+					},
+					skipCloseAnimation,
+				})
+
+				return () => null
+			},
+		})
+
+		const wrapper = mount(Harness)
+		const exposed = wrapper.vm.$.exposed as {
+			content: HTMLElement
+			overlay: HTMLElement
+			gesture: ReturnType<typeof useDrawerGesture>
+			gestureClosing: { value: boolean }
+			setOpen: (value: boolean) => void
+			skipCloseAnimation: { value: boolean }
+		}
+
+		exposed.gesture.handlePointerDown(createPointerEvent('pointerdown', exposed.content, 1, 0))
+		exposed.gesture.handlePointerMove(createPointerEvent('pointermove', exposed.content, 1, 140))
+		exposed.gesture.handlePointerUp(createPointerEvent('pointerup', exposed.content, 1, 140))
+
+		expect(exposed.content.style.pointerEvents).toBe('none')
+		await nextTick()
+		exposed.setOpen(true)
+		await nextTick()
+
+		expect(exposed.gestureClosing.value).toBe(false)
+		expect(exposed.skipCloseAnimation.value).toBe(false)
+		expect(exposed.content.style.pointerEvents).toBe('')
+		expect(exposed.overlay.style.pointerEvents).toBe('')
+
+		flushTransitionCallbacks()
+
+		expect(exposed.skipCloseAnimation.value).toBe(false)
+		expect(exposed.content.style.pointerEvents).toBe('')
+		expect(exposed.overlay.style.pointerEvents).toBe('')
+
+		wrapper.unmount()
+	})
+
+	it('keeps an active close drag alive through viewport scroll and finalizes from touchend', async () => {
+		setImmediateTransitionResolution(false)
+		const Harness = defineComponent({
+			setup(_, { expose }) {
+				let capturedPointerId: number | null = null
+				const content = document.createElement('div')
+				const overlay = document.createElement('div')
+
+				Object.assign(content, {
+					setPointerCapture: vi.fn((pointerId: number) => {
+						capturedPointerId = pointerId
+					}),
+					hasPointerCapture: vi.fn((pointerId: number) => capturedPointerId === pointerId),
+					releasePointerCapture: vi.fn((pointerId: number) => {
+						if (capturedPointerId === pointerId) {
+							capturedPointerId = null
+						}
+					}),
+				})
+
+				const open = ref(true)
+				const gestureClosing = ref(false)
+				const isDragging = ref(false)
+				const preventCloseAutoFocusOnce = ref(false)
+				const requestOpenChange = vi.fn((value: boolean) => {
+					open.value = value
+				})
+				const resetInteractiveState = vi.fn()
+
+				const gesture = useDrawerGesture({
+					debugId: 'bottom#test',
+					open,
+					openedAt: ref(Date.now() - 1000),
+					direction: ref('bottom'),
+					dismissible: ref(true),
+					closeThreshold: ref(0.25),
+					scrollLockTimeout: ref(500),
+					snapToSequentialPoint: ref(false),
+					hasSnapPoints: ref(false),
+					activeSnapPointIndex: ref(0),
+					fadeFromIndex: ref<number | undefined>(undefined),
+					contentElement: ref(content),
+					overlayElement: ref(overlay),
+					isDragging,
+					gestureClosing,
+					preventCloseAutoFocusOnce,
+					requestOpenChange,
+					setSkipCloseAnimation: () => undefined,
+						setGestureClosing(value: boolean) {
+							gestureClosing.value = value
+							if (value) {
+								isDragging.value = false
+							}
+						},
+						emitDrag: vi.fn(),
+						emitRelease: vi.fn(),
+						getContentTransition: () => 'transform 420ms ease',
+					getOverlayTransition: () => 'opacity 420ms ease',
+					getVisibleDrawerSize: () => 320,
+					getSnapPointsOffset: () => [],
+					getRestingOffset: () => 0,
+					getRestingOverlayOpacity: () => 1,
+					animateToSnapPoint: () => undefined,
+					parentContext: null,
+					resetInteractiveState,
+				})
+
+				expose({
+					content,
+					gesture,
+					isDragging,
+					overlay,
+					requestOpenChange,
+					resetInteractiveState,
+				})
+
+				return () => null
+			},
+		})
+
+		const wrapper = mount(Harness)
+		const exposed = wrapper.vm.$.exposed as {
+			content: HTMLElement
+			gesture: ReturnType<typeof useDrawerGesture>
+			isDragging: { value: boolean }
+			overlay: HTMLElement
+			requestOpenChange: ReturnType<typeof vi.fn>
+			resetInteractiveState: ReturnType<typeof vi.fn>
+		}
+
+		exposed.gesture.handlePointerDown(createPointerEvent('pointerdown', exposed.content, 1, 0))
+		exposed.gesture.handlePointerMove(createPointerEvent('pointermove', exposed.content, 1, 80))
+
+		expect(exposed.isDragging.value).toBe(true)
+		expect(exposed.content.style.transform).toBe(getTranslateStyles('bottom', 80))
+
+		window.dispatchEvent(new Event('scroll'))
+
+		expect(exposed.requestOpenChange).not.toHaveBeenCalled()
+		expect(exposed.isDragging.value).toBe(true)
+		expect(exposed.content.style.transition).toBe('none')
+		expect(exposed.content.style.transform).toBe(getTranslateStyles('bottom', 80))
+
+		window.dispatchEvent(new Event('touchend'))
+		await new Promise(resolve => setTimeout(resolve, 0))
+
+		expect(exposed.requestOpenChange).toHaveBeenCalledWith(false)
+		expect(exposed.isDragging.value).toBe(false)
+		expect(exposed.content.style.transition).toBe('transform 420ms ease')
+		expect(exposed.content.style.transform).toBe(getClosedTransform('bottom'))
+		expect(exposed.overlay.style.transition).toBe('opacity 420ms ease')
+		expect(exposed.overlay.style.opacity).toBe('0')
+		expect(exposed.content.style.pointerEvents).toBe('none')
+		expect(exposed.overlay.style.pointerEvents).toBe('none')
+
+		flushTransitionCallbacks()
+
+		expect(exposed.content.style.transition).toBe('')
+		expect(exposed.content.style.transform).toBe(getClosedTransform('bottom'))
+		expect(exposed.resetInteractiveState).not.toHaveBeenCalled()
+
+		wrapper.unmount()
+	})
+
+	it('does not capture pointer gestures that start inside no-drag zones', () => {
+		const Harness = defineComponent({
+			setup(_, { expose }) {
+				const content = document.createElement('div')
+				const overlay = document.createElement('div')
+				const noDrag = document.createElement('label')
+				const input = document.createElement('input')
+				noDrag.setAttribute('data-drawer-no-drag', '')
+				noDrag.appendChild(input)
+				content.appendChild(noDrag)
+
+				Object.assign(input, {
+					setPointerCapture: vi.fn(),
+					hasPointerCapture: vi.fn(() => false),
+					releasePointerCapture: vi.fn(),
+				})
+
+				const open = ref(true)
+				const gestureClosing = ref(false)
+				const isDragging = ref(false)
+				const preventCloseAutoFocusOnce = ref(false)
+				const requestOpenChange = vi.fn((value: boolean) => {
+					open.value = value
+				})
+
+				const gesture = useDrawerGesture({
+					debugId: 'bottom#test',
+					open,
+					openedAt: ref(Date.now() - 1000),
+					direction: ref('bottom'),
+					dismissible: ref(true),
+					closeThreshold: ref(0.25),
+					scrollLockTimeout: ref(500),
+					snapToSequentialPoint: ref(false),
+					hasSnapPoints: ref(false),
+					activeSnapPointIndex: ref(0),
+					fadeFromIndex: ref<number | undefined>(undefined),
+					contentElement: ref(content),
+					overlayElement: ref(overlay),
+					isDragging,
+					gestureClosing,
+					preventCloseAutoFocusOnce,
+					requestOpenChange,
+					setSkipCloseAnimation: () => undefined,
+						setGestureClosing(value: boolean) {
+							gestureClosing.value = value
+						},
+						emitDrag: vi.fn(),
+						emitRelease: vi.fn(),
+						getContentTransition: () => 'transform 420ms ease',
+					getOverlayTransition: () => 'opacity 420ms ease',
+					getVisibleDrawerSize: () => 320,
+					getSnapPointsOffset: () => [],
+					getRestingOffset: () => 0,
+					getRestingOverlayOpacity: () => 1,
+					animateToSnapPoint: () => undefined,
+					parentContext: null,
+					resetInteractiveState: () => undefined,
+				})
+
+				expose({
+					gesture,
+					input,
+					isDragging,
+					requestOpenChange,
+				})
+
+				return () => null
+			},
+		})
+
+		const wrapper = mount(Harness)
+		const exposed = wrapper.vm.$.exposed as {
+			gesture: ReturnType<typeof useDrawerGesture>
+			input: HTMLInputElement & { setPointerCapture: ReturnType<typeof vi.fn> }
+			isDragging: { value: boolean }
+			requestOpenChange: ReturnType<typeof vi.fn>
+		}
+
+		exposed.gesture.handlePointerDown(createPointerEvent('pointerdown', exposed.input, 1, 0))
+		exposed.gesture.handlePointerMove(createPointerEvent('pointermove', exposed.input, 1, 140))
+		exposed.gesture.handlePointerUp(createPointerEvent('pointerup', exposed.input, 1, 140))
+
+		expect(exposed.input.setPointerCapture).not.toHaveBeenCalled()
+		expect(exposed.isDragging.value).toBe(false)
+		expect(exposed.requestOpenChange).not.toHaveBeenCalled()
+
+		wrapper.unmount()
+	})
+})
