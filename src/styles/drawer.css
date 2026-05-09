@@ -11,16 +11,6 @@
 	--drawer-fade-enter-offset: 0px;
 }
 
-:root[data-vuedrawer-scroll-lock='true'] {
-	scrollbar-width: none;
-}
-
-:root[data-vuedrawer-scroll-lock='true']::-webkit-scrollbar {
-	display: none;
-	height: 0;
-	width: 0;
-}
-
 .drawer-content {
 	position: relative;
 	will-change: transform;

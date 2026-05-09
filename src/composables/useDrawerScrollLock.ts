@@ -23,10 +23,6 @@ interface DocumentScrollSnapshot {
 	scrollbarWidthProperty: string
 }
 
-interface DocumentScrollbarSnapshot {
-	lockedAttribute: string | null
-}
-
 interface UseDrawerScrollLockOptions {
 	debugId: string
 	open: Ref<boolean>
@@ -41,10 +37,8 @@ interface UseDrawerScrollLockOptions {
 
 let previousBodyPosition: BodyPositionSnapshot | null = null
 let previousDocumentScroll: DocumentScrollSnapshot | null = null
-let previousDocumentScrollbar: DocumentScrollbarSnapshot | null = null
 let previousDocumentOverscroll: DocumentOverscrollSnapshot | null = null
 let documentScrollLockCount = 0
-let documentScrollbarLockCount = 0
 let documentOverscrollLockCount = 0
 
 const nonTextInputTypes = new Set([
@@ -122,19 +116,6 @@ function lockDocumentScroll() {
 	documentScrollLockCount += 1
 }
 
-function lockDocumentScrollbar() {
-	if (typeof document === 'undefined') return
-
-	if (documentScrollbarLockCount === 0) {
-		previousDocumentScrollbar = {
-			lockedAttribute: document.documentElement.getAttribute('data-vuedrawer-scroll-lock'),
-		}
-		document.documentElement.setAttribute('data-vuedrawer-scroll-lock', 'true')
-	}
-
-	documentScrollbarLockCount += 1
-}
-
 function restoreDocumentScroll() {
 	if (typeof document === 'undefined' || documentScrollLockCount === 0) return
 
@@ -152,22 +133,6 @@ function restoreDocumentScroll() {
 		document.documentElement.style.removeProperty('--vuedrawer-scrollbar-width')
 	}
 	previousDocumentScroll = null
-}
-
-function restoreDocumentScrollbar() {
-	if (typeof document === 'undefined' || documentScrollbarLockCount === 0) return
-
-	documentScrollbarLockCount = Math.max(documentScrollbarLockCount - 1, 0)
-	if (documentScrollbarLockCount > 0) return
-	if (!previousDocumentScrollbar) return
-
-	if (previousDocumentScrollbar.lockedAttribute === null) {
-		document.documentElement.removeAttribute('data-vuedrawer-scroll-lock')
-	}
-	else {
-		document.documentElement.setAttribute('data-vuedrawer-scroll-lock', previousDocumentScrollbar.lockedAttribute)
-	}
-	previousDocumentScrollbar = null
 }
 
 function lockDocumentOverscroll() {
@@ -213,7 +178,6 @@ export function useDrawerScrollLock(options: UseDrawerScrollLockOptions) {
 	const activeUrl = ref(typeof window !== 'undefined' ? window.location.href : '')
 	const scrollPos = ref(typeof window !== 'undefined' ? window.scrollY : 0)
 	const hasDocumentScrollLock = ref(false)
-	const hasDocumentScrollbarLock = ref(false)
 	const hasDocumentOverscrollLock = ref(false)
 	const hasBodyPositionLock = ref(false)
 	const lockedScrollX = ref(0)
@@ -540,21 +504,6 @@ export function useDrawerScrollLock(options: UseDrawerScrollLockOptions) {
 		}
 	}
 
-	function syncDocumentScrollbarLock(shouldLock: boolean) {
-		if (shouldLock && !hasDocumentScrollbarLock.value) {
-			lockDocumentScrollbar()
-			hasDocumentScrollbarLock.value = true
-			logDrawerDebug(debugId, 'document-scrollbar:lock')
-			return
-		}
-
-		if (!shouldLock && hasDocumentScrollbarLock.value) {
-			restoreDocumentScrollbar()
-			hasDocumentScrollbarLock.value = false
-			logDrawerDebug(debugId, 'document-scrollbar:restore')
-		}
-	}
-
 	function syncTouchScrollGuard(shouldLock: boolean) {
 		if (shouldLock) {
 			registerTouchScrollGuard()
@@ -639,7 +588,6 @@ export function useDrawerScrollLock(options: UseDrawerScrollLockOptions) {
 		([isOpen, isModal, shouldPreventScroll, shouldSkipBodyStyles]) => {
 			const shouldLockOverscroll = shouldPreventScroll && isOpen && isModal
 			const shouldLockDocumentScroll = shouldLockOverscroll && !shouldSkipBodyStyles
-			syncDocumentScrollbarLock(shouldLockDocumentScroll && canLockDocumentScroll())
 			syncDocumentScrollLock(shouldLockDocumentScroll)
 			syncDocumentOverscrollLock(shouldLockOverscroll)
 			syncTouchScrollGuard(shouldLockOverscroll)
@@ -693,11 +641,6 @@ export function useDrawerScrollLock(options: UseDrawerScrollLockOptions) {
 		if (hasDocumentScrollLock.value) {
 			restoreDocumentScroll()
 			hasDocumentScrollLock.value = false
-		}
-
-		if (hasDocumentScrollbarLock.value) {
-			restoreDocumentScrollbar()
-			hasDocumentScrollbarLock.value = false
 		}
 
 		clearBodyPositionAdjustmentTimer()

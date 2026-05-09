@@ -180,7 +180,7 @@ select {
 	gap: 22px;
 	margin: 0 auto;
 	max-width: 980px;
-	min-height: 100dvh;
+	min-height: 125dvh;
 	padding: 28px 18px 56px;
 }
 

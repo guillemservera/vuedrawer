@@ -2,7 +2,6 @@
 import { computed, onBeforeUnmount, onErrorCaptured, ref, useAttrs, watch } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import { useDrawerAriaIsolation } from '../composables/useDrawerAriaIsolation'
-import { useDrawerDismissableLayer } from '../composables/useDrawerDismissableLayer'
 import { useDrawerFocusScope } from '../composables/useDrawerFocusScope'
 import { useDrawerGesture } from '../composables/useDrawerGesture'
 import { ESCAPE_LAYER_PRIORITIES, useDrawerEscapeLayer } from '../composables/useDrawerEscapeLayer'
@@ -30,7 +29,6 @@ const shouldRender = computed(() => root.open.value || root.gestureClosing.value
 const shouldUseInstantLeave = computed(() => root.skipCloseAnimation.value)
 const closeAnimation = computed(() => root.closeAnimationOverride.value ?? root.closeAnimation.value)
 const contentAnimation = computed(() => root.open.value ? root.animation.value : closeAnimation.value)
-const isLayerEnabled = computed(() => root.open.value)
 const isModalOpen = computed(() => root.open.value && root.modal.value)
 const shouldRestoreFocus = computed(() => !root.preventCloseAutoFocusOnce.value)
 const resolvedContentId = computed(() => getAttributeString(attrs.id) ?? root.defaultContentId)
@@ -107,38 +105,6 @@ const focusScope = useDrawerFocusScope({
 useDrawerAriaIsolation({
 	contentElement: contentRef,
 	enabled: isModalOpen,
-})
-
-useDrawerDismissableLayer({
-	id: `drawer:${root.debugId}`,
-	element: contentRef,
-	enabled: () => isLayerEnabled.value,
-	modal: () => root.modal.value,
-	onPointerDownOutside: (event) => {
-		emit('pointer-down-outside', event)
-		emit('interact-outside', event)
-		if (event.defaultPrevented) return
-
-		if (!root.modal.value) {
-			event.preventDefault()
-			return
-		}
-
-		root.handleDismissAttempt(event)
-		if (!event.defaultPrevented) {
-			root.requestOpenChange(false)
-		}
-	},
-	onFocusOutside: (event) => {
-		emit('focus-outside', event)
-		emit('interact-outside', event)
-		if (!root.modal.value || event.defaultPrevented) {
-			event.preventDefault()
-			return
-		}
-
-		event.preventDefault()
-	},
 })
 
 provideDrawerGestureContext({

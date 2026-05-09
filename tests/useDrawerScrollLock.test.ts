@@ -133,7 +133,6 @@ describe('useDrawerScrollLock', () => {
 		Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, value: 1024 })
 		document.body.style.cssText = ''
 		document.documentElement.style.cssText = ''
-		document.documentElement.removeAttribute('data-vuedrawer-scroll-lock')
 	})
 
 	it('registers the iOS touch scroll guard when a modal drawer opens', async () => {
@@ -225,7 +224,6 @@ describe('useDrawerScrollLock', () => {
 
 		expect(document.documentElement.style.overflow).toBe('')
 		expect(document.body.style.overflow).toBe('')
-		expect(document.documentElement.hasAttribute('data-vuedrawer-scroll-lock')).toBe(false)
 		expect(document.body.style.position).toBe('fixed')
 
 		wrapper.unmount()
@@ -263,7 +261,6 @@ describe('useDrawerScrollLock', () => {
 
 		expect(document.documentElement.style.overflow).toBe('hidden')
 		expect(document.body.style.overflow).toBe('hidden')
-		expect(document.documentElement.getAttribute('data-vuedrawer-scroll-lock')).toBe('true')
 		expect(document.body.style.position).toBe('')
 
 		wrapper.unmount()
@@ -305,7 +302,6 @@ describe('useDrawerScrollLock', () => {
 
 		expect(document.documentElement.style.overflow).toBe('auto')
 		expect(document.body.style.overflow).toBe('scroll')
-		expect(document.documentElement.hasAttribute('data-vuedrawer-scroll-lock')).toBe(false)
 		expect(document.body.style.position).toBe('')
 
 		wrapper.unmount()
@@ -337,7 +333,6 @@ describe('useDrawerScrollLock', () => {
 		expect(document.body.style.overscrollBehaviorY).toBe('none')
 		expect(document.documentElement.style.overflow).toBe('')
 		expect(document.body.style.overflow).toBe('')
-		expect(document.documentElement.hasAttribute('data-vuedrawer-scroll-lock')).toBe(false)
 		expect(document.body.style.position).toBe('')
 
 		wrapper.unmount()
