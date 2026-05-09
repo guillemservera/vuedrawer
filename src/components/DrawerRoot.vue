@@ -69,6 +69,7 @@ const titleId = ref<string | undefined>()
 const descriptionId = ref<string | undefined>()
 let nestedTransitionVersion = 0
 let skipNextActiveSnapPointAnimation = false
+let nestedTransitionCleanup: (() => void) | null = null
 
 interface SyncRestingStyleOptions {
 	overlayOpacity?: number
@@ -348,6 +349,34 @@ function getNestedCompositeTransform(closeProgress: number) {
 	return `${getTranslateStyles(props.direction, restingOffset)} ${nestedTransform}`
 }
 
+function getRestingTransform() {
+	return getTranslateStyles(props.direction, getRestingOffset())
+}
+
+function cancelNestedTransitionWait() {
+	nestedTransitionCleanup?.()
+	nestedTransitionCleanup = null
+}
+
+function startNestedTransition(content: HTMLElement, targetTransform: string, options: { instant?: boolean } = {}) {
+	cancelNestedTransitionWait()
+
+	const computedTransform = window.getComputedStyle(content).transform
+	const currentTransform = computedTransform && computedTransform !== 'none'
+		? computedTransform
+		: getRestingTransform()
+
+	// Rapid nested open/close cycles can write several transform targets in the
+	// same frame. Commit the current visual transform first so Safari starts the
+	// next parent animation instead of collapsing it into a style jump.
+	content.style.transition = 'none'
+	content.style.transform = currentTransform
+	content.getBoundingClientRect()
+
+	content.style.transition = getContentTransition(options)
+	content.style.transform = targetTransform
+}
+
 function animateToSnapPoint(index: number, options: { updateActiveSnapPoint?: boolean } = {}) {
 	const snapPointsOffset = getSnapPointsOffset()
 	const snapPoint = props.snapPoints?.[index] ?? null
@@ -407,6 +436,8 @@ function resetInteractiveState() {
 	const content = contentElement.value
 	const overlay = overlayElement.value
 
+	cancelNestedTransitionWait()
+
 	if (content) {
 		content.style.transition = ''
 		content.style.transform = ''
@@ -461,30 +492,35 @@ function setNestedChildOpen(value: boolean, options: { instant?: boolean } = {})
 
 	if (!value && !open.value) {
 		nestedRestoreActive.value = false
+		cancelNestedTransitionWait()
 		content.style.transition = ''
 		content.style.transform = ''
 		return
 	}
 
 	nestedRestoreActive.value = !value
-	content.style.transition = getContentTransition({ instant: !value ? options.instant : false })
-	content.style.transform = value
+	startNestedTransition(content, value
 		? getNestedCompositeTransform(0)
-		: getTranslateStyles(props.direction, getRestingOffset())
+		: getRestingTransform(), { instant: !value ? options.instant : false })
 
-	waitForDrawerTransition(content, 'transform', () => {
+	const cleanup = waitForDrawerTransition(content, 'transform', () => {
+		if (nestedTransitionCleanup === cleanup) {
+			nestedTransitionCleanup = null
+		}
 		if (transitionVersion !== nestedTransitionVersion) return
 		nestedRestoreActive.value = false
 		if (!value) {
 			resetInteractiveState()
 		}
 	})
+	nestedTransitionCleanup = cleanup
 }
 
 function onNestedDrag(closeProgress: number) {
 	const content = contentElement.value
 	if (!content) return
 
+	cancelNestedTransitionWait()
 	content.style.transition = 'none'
 	content.style.transform = getNestedCompositeTransform(closeProgress)
 }
@@ -503,22 +539,26 @@ function onNestedRelease(isStillOpen: boolean) {
 		nestedRestoreActive.value = true
 	}
 
-	content.style.transition = getContentTransition()
-	content.style.transform = isStillOpen
+	startNestedTransition(content, isStillOpen
 		? getNestedCompositeTransform(0)
-		: getTranslateStyles(props.direction, getRestingOffset())
+		: getRestingTransform())
 
-	waitForDrawerTransition(content, 'transform', () => {
+	const cleanup = waitForDrawerTransition(content, 'transform', () => {
+		if (nestedTransitionCleanup === cleanup) {
+			nestedTransitionCleanup = null
+		}
 		if (transitionVersion !== nestedTransitionVersion) return
 		nestedRestoreActive.value = false
 		if (!isStillOpen) {
 			resetInteractiveState()
 		}
 	})
+	nestedTransitionCleanup = cleanup
 }
 
 function handleAfterOpen() {
 	logDrawerDebug(debugId, 'after-open')
+	if (!open.value) return
 	gestureClosing.value = false
 	skipCloseAnimation.value = false
 	syncRestingStyles()
@@ -529,6 +569,7 @@ function handleAfterOpen() {
 
 function handleAfterClose() {
 	logDrawerDebug(debugId, 'after-close')
+	if (open.value) return
 	resetInteractiveState()
 	restoreBodyPointerEvents()
 	skipCloseAnimation.value = false
@@ -748,6 +789,7 @@ watch(open, (isOpen) => {
 
 	if ((nestedChildOpen.value || nestedRestoreActive.value) && contentElement.value) {
 		nestedTransitionVersion += 1
+		cancelNestedTransitionWait()
 		nestedChildOpen.value = false
 		nestedRestoreActive.value = false
 		contentElement.value.style.transition = ''

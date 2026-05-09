@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { defineComponent, nextTick, ref } from 'vue'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import DrawerClose from '../src/components/DrawerClose.vue'
 import DrawerContent from '../src/components/DrawerContent.vue'
@@ -9,6 +9,7 @@ import DrawerPortal from '../src/components/DrawerPortal.vue'
 import DrawerRoot from '../src/components/DrawerRoot.vue'
 import DrawerTitle from '../src/components/DrawerTitle.vue'
 import DrawerTrigger from '../src/components/DrawerTrigger.vue'
+import { clearDrawerDismissableLayersForTest } from '../src/composables/useDrawerDismissableLayer'
 
 vi.mock('../src/composables/useDrawerScrollLock', () => ({
 	useDrawerScrollLock: () => undefined,
@@ -22,6 +23,10 @@ vi.mock('../src/utils/drawerDebug', () => ({
 }))
 
 describe('Drawer accessibility primitives', () => {
+	afterEach(() => {
+		clearDrawerDismissableLayersForTest()
+	})
+
 	it('links title and description to dialog content automatically', async () => {
 		const Harness = defineComponent({
 			components: {
@@ -220,6 +225,149 @@ describe('Drawer accessibility primitives', () => {
 		outside.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }))
 		await nextTick()
 
+		expect((wrapper.vm as unknown as { open: boolean }).open).toBe(true)
+
+		wrapper.unmount()
+		outside.remove()
+	})
+
+	it('dismisses from outside pointer events without requiring an overlay', async () => {
+		const outside = document.createElement('button')
+		outside.type = 'button'
+		document.body.appendChild(outside)
+		const pointerDownOutside = vi.fn()
+		const interactOutside = vi.fn()
+
+		const Harness = defineComponent({
+			components: {
+				DrawerContent,
+				DrawerRoot,
+			},
+			setup() {
+				const open = ref(true)
+				return {
+					interactOutside,
+					open,
+					pointerDownOutside,
+				}
+			},
+			template: `
+				<DrawerRoot v-model:open="open">
+					<DrawerContent
+						@pointer-down-outside="pointerDownOutside"
+						@interact-outside="interactOutside"
+					/>
+				</DrawerRoot>
+			`,
+		})
+
+		const wrapper = mount(Harness, {
+			attachTo: document.body,
+			global: {
+				stubs: {
+					Transition: false,
+				},
+			},
+		})
+
+		await nextTick()
+		const pointerEvent = new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+		outside.dispatchEvent(pointerEvent)
+		await nextTick()
+
+		expect(pointerDownOutside).toHaveBeenCalledTimes(1)
+		expect(interactOutside).toHaveBeenCalledTimes(1)
+		expect(pointerEvent.defaultPrevented).toBe(true)
+		expect((wrapper.vm as unknown as { open: boolean }).open).toBe(false)
+
+		wrapper.unmount()
+		outside.remove()
+	})
+
+	it('does not block outside pointer defaults for non-modal drawers', async () => {
+		const outside = document.createElement('button')
+		outside.type = 'button'
+		document.body.appendChild(outside)
+
+		const Harness = defineComponent({
+			components: {
+				DrawerContent,
+				DrawerRoot,
+			},
+			setup() {
+				const open = ref(true)
+				return { open }
+			},
+			template: `
+				<DrawerRoot v-model:open="open" :modal="false">
+					<DrawerContent />
+				</DrawerRoot>
+			`,
+		})
+
+		const wrapper = mount(Harness, {
+			attachTo: document.body,
+			global: {
+				stubs: {
+					Transition: false,
+				},
+			},
+		})
+
+		await nextTick()
+		const pointerEvent = new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+		outside.dispatchEvent(pointerEvent)
+		await nextTick()
+
+		expect(pointerEvent.defaultPrevented).toBe(false)
+		expect((wrapper.vm as unknown as { open: boolean }).open).toBe(false)
+
+		wrapper.unmount()
+		outside.remove()
+	})
+
+	it('emits focus outside for modal drawers without dismissing from focus trap churn', async () => {
+		const outside = document.createElement('button')
+		outside.type = 'button'
+		document.body.appendChild(outside)
+		const focusOutside = vi.fn()
+
+		const Harness = defineComponent({
+			components: {
+				DrawerContent,
+				DrawerRoot,
+			},
+			setup() {
+				const open = ref(true)
+				return {
+					focusOutside,
+					open,
+				}
+			},
+			template: `
+				<DrawerRoot v-model:open="open">
+					<DrawerContent @focus-outside="focusOutside">
+						<button class="inside-button" type="button">Inside</button>
+					</DrawerContent>
+				</DrawerRoot>
+			`,
+		})
+
+		const wrapper = mount(Harness, {
+			attachTo: document.body,
+			global: {
+				stubs: {
+					Transition: false,
+				},
+			},
+		})
+
+		await nextTick()
+		outside.focus()
+		await nextTick()
+		await nextTick()
+
+		expect(focusOutside).toHaveBeenCalledTimes(1)
 		expect((wrapper.vm as unknown as { open: boolean }).open).toBe(true)
 
 		wrapper.unmount()

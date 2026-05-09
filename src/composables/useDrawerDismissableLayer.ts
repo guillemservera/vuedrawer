@@ -57,8 +57,9 @@ function handleDocumentPointerDown(event: PointerEvent) {
 
 	layer.onPointerDownOutside(outsideEvent)
 
-	if (outsideEvent.defaultPrevented) return
-	event.preventDefault()
+	if (layer.modal()) {
+		event.preventDefault()
+	}
 }
 
 function handleDocumentFocusIn(event: FocusEvent) {

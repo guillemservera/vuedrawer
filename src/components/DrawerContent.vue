@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onErrorCaptured, ref, useAttrs, watch } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import { useDrawerAriaIsolation } from '../composables/useDrawerAriaIsolation'
+import { useDrawerDismissableLayer } from '../composables/useDrawerDismissableLayer'
 import { useDrawerFocusScope } from '../composables/useDrawerFocusScope'
 import { useDrawerGesture } from '../composables/useDrawerGesture'
 import { ESCAPE_LAYER_PRIORITIES, useDrawerEscapeLayer } from '../composables/useDrawerEscapeLayer'
@@ -107,6 +108,49 @@ useDrawerAriaIsolation({
 	enabled: isModalOpen,
 })
 
+useDrawerDismissableLayer({
+	id: `drawer:${root.debugId}`,
+	element: contentRef,
+	enabled: () => root.open.value,
+	modal: () => root.modal.value,
+	onPointerDownOutside: (event) => {
+		emit('pointer-down-outside', event)
+		emit('interact-outside', event)
+
+		if (event.defaultPrevented) return
+
+		const originalEvent = event.detail.originalEvent
+		const ctrlLeftClick = originalEvent.button === 0 && originalEvent.ctrlKey
+		const isRightClick = originalEvent.button === 2 || ctrlLeftClick
+		if (root.modal.value && isRightClick) {
+			event.preventDefault()
+			return
+		}
+
+		root.handleDismissAttempt(event)
+		if (event.defaultPrevented) return
+
+		root.preventCloseAutoFocusOnce.value = true
+		root.requestOpenChange(false)
+	},
+	onFocusOutside: (event) => {
+		emit('focus-outside', event)
+		emit('interact-outside', event)
+
+		if (event.defaultPrevented) return
+		if (root.modal.value) {
+			event.preventDefault()
+			return
+		}
+
+		root.handleDismissAttempt(event)
+		if (event.defaultPrevented) return
+
+		root.preventCloseAutoFocusOnce.value = true
+		root.requestOpenChange(false)
+	},
+})
+
 provideDrawerGestureContext({
 	handlePointerDown,
 	handlePointerMove,
@@ -128,11 +172,13 @@ function assignContentRef(el: Element | ComponentPublicInstance | null) {
 }
 
 function handleAfterEnter() {
+	if (!root.open.value) return
 	root.handleAfterOpen()
 	focusScope.handleAfterOpen()
 }
 
 function handleAfterLeave() {
+	if (root.open.value) return
 	focusScope.handleAfterClose()
 	root.preventCloseAutoFocusOnce.value = false
 	root.handleAfterClose()

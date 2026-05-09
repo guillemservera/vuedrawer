@@ -153,4 +153,44 @@ describe('DrawerRootNested', () => {
 
 		wrapper.unmount()
 	})
+
+	it('keeps the parent nested animation when the child is reopened during restore', async () => {
+		const wrapper = mount(NestedInstantHarness, {
+			attachTo: document.body,
+			global: {
+				stubs: {
+					Transition: false,
+				},
+			},
+		})
+
+		await nextTick()
+
+		const probes = wrapper.findAllComponents(ContextProbe)
+		const parentProbe = probes[0]!.vm.$.exposed as {
+			root: ReturnType<typeof useDrawerRootContext>
+		}
+		const content = parentProbe.root.contentElement.value!
+
+		;(wrapper.vm as unknown as { childOpen: boolean }).childOpen = false
+		await nextTick()
+		expect(content.style.transition).toContain('420ms')
+
+		;(wrapper.vm as unknown as { childOpen: boolean }).childOpen = true
+		await nextTick()
+
+		expect(content.style.transition).toContain('420ms')
+		expect(content.style.transform).toContain('scale')
+		expect(content.style.transform).toContain('translate3d')
+
+		content.dispatchEvent(new TransitionEvent('transitionend', {
+			bubbles: true,
+			propertyName: 'transform',
+		}))
+
+		expect(content.style.transform).toContain('scale')
+		expect(content.style.transform).toContain('translate3d')
+
+		wrapper.unmount()
+	})
 })
