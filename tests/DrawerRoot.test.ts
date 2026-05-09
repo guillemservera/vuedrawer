@@ -166,6 +166,26 @@ const ControlledSnapPointsHarness = defineComponent({
 	`,
 })
 
+function createTouchPointerEvent(type: string, clientY: number) {
+	const event = new PointerEvent(type, {
+		bubbles: true,
+		cancelable: true,
+		clientX: 0,
+		clientY,
+	})
+
+	Object.defineProperty(event, 'pointerId', {
+		configurable: true,
+		value: 1,
+	})
+	Object.defineProperty(event, 'pointerType', {
+		configurable: true,
+		value: 'touch',
+	})
+
+	return event
+}
+
 describe('DrawerRoot', () => {
 	beforeEach(() => {
 		vi.useFakeTimers()
@@ -327,6 +347,42 @@ describe('DrawerRoot', () => {
 		await nextTick()
 
 		expect(probe.root.contentElement.value?.style.transform ?? '').toBe('')
+
+		wrapper.unmount()
+	})
+
+	it('closes from a real content swipe gesture', async () => {
+		const wrapper = mount(Harness, {
+			attachTo: document.body,
+			global: {
+				stubs: {
+					Transition: false,
+				},
+			},
+		})
+
+		await nextTick()
+		vi.advanceTimersByTime(600)
+
+		const content = wrapper.get('[data-drawer-content]').element as HTMLElement
+		vi.spyOn(content, 'getBoundingClientRect').mockReturnValue({
+			bottom: 320,
+			height: 320,
+			left: 0,
+			right: 320,
+			top: 0,
+			width: 320,
+			x: 0,
+			y: 0,
+			toJSON: () => ({}),
+		} as DOMRect)
+
+		content.dispatchEvent(createTouchPointerEvent('pointerdown', 0))
+		content.dispatchEvent(createTouchPointerEvent('pointermove', 140))
+		content.dispatchEvent(createTouchPointerEvent('pointerup', 140))
+		await nextTick()
+
+		expect((wrapper.vm as unknown as { open: boolean }).open).toBe(false)
 
 		wrapper.unmount()
 	})

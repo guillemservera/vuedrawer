@@ -67,11 +67,11 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 		gestureClosing,
 		preventCloseAutoFocusOnce,
 		requestOpenChange,
-			setSkipCloseAnimation,
-			setGestureClosing,
-			emitDrag,
-			emitRelease,
-			getContentTransition,
+		setSkipCloseAnimation,
+		setGestureClosing,
+		emitDrag,
+		emitRelease,
+		getContentTransition,
 		getOverlayTransition,
 		getVisibleDrawerSize,
 		getSnapPointsOffset,
@@ -84,6 +84,7 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 
 	const pointerId = ref<number | null>(null)
 	const pointerTarget = ref<EventTarget | null>(null)
+	const lastPointerEvent = ref<PointerEvent | null>(null)
 	const pointerCaptureElement = ref<HTMLElement | null>(null)
 	const pointerStartPosition = ref<{ x: number, y: number } | null>(null)
 	const pointerStart = ref(0)
@@ -127,6 +128,7 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 		const captureElement = pointerCaptureElement.value
 		pointerId.value = null
 		pointerTarget.value = null
+		lastPointerEvent.value = null
 		pointerCaptureElement.value = null
 		pointerStartPosition.value = null
 		pointerStart.value = 0
@@ -143,7 +145,18 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 	function finalizeTouchGestureFromFallback() {
 		touchEndFallbackTimer.value = null
 		if (pointerId.value === null) return
-		settleInterruptedGesture()
+
+		const event = lastPointerEvent.value
+		if (!event) {
+			settleInterruptedGesture()
+			return
+		}
+
+		logDrawerDebug(debugId, 'gesture:touchend-finalize-last-pointer', {
+			pointerId: pointerId.value,
+			axisDistance: Math.round(getAxisDistance(event, direction.value)),
+		})
+		finalizeGesture(event)
 	}
 
 	function forceCloseAfterInterruptedGesture() {
@@ -188,11 +201,11 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 
 		clearWindowGestureListeners()
 
-			const handleWindowPointerUp = (event: PointerEvent) => {
-				if (pointerId.value !== event.pointerId) return
-				logDrawerDebug(debugId, 'window:pointerup', { pointerId: event.pointerId })
-				finalizeGesture(event)
-			}
+		const handleWindowPointerUp = (event: PointerEvent) => {
+			if (pointerId.value !== event.pointerId) return
+			logDrawerDebug(debugId, 'window:pointerup', { pointerId: event.pointerId })
+			finalizeGesture(event)
+		}
 
 		const handleWindowPointerCancel = (event: PointerEvent) => {
 			if (pointerId.value !== event.pointerId) return
@@ -225,11 +238,14 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 			settleInterruptedGesture()
 		}
 
-		// Safari can hand a top-edge drag to pull-to-refresh without delivering a normal release
-		// sequence back to the drawer. If the viewport starts scrolling while a drawer gesture is
-		// active, force the gesture to settle instead of leaving stale transforms/pointer state.
+		// Safari can move the viewport during a drawer drag before it delivers touchend.
+		// Keep active drags alive so the touchend fallback can finish the close gesture.
 		const handleWindowScroll = () => {
 			if (pointerId.value === null) return
+			if (isDragging.value) {
+				logDrawerDebug(debugId, 'window:scroll-while-dragging', { pointerId: pointerId.value })
+				return
+			}
 			logDrawerDebug(debugId, 'window:scroll-interrupt', { pointerId: pointerId.value })
 			settleInterruptedGesture()
 		}
@@ -491,11 +507,11 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 		})
 	}
 
-		function finalizeGesture(event: PointerEvent) {
-			const axisDistance = getAxisDistance(event, direction.value)
-			if (!isDragging.value) {
-				logDrawerDebug(debugId, 'gesture:finalize-no-drag', {
-					axisDistance: Math.round(axisDistance),
+	function finalizeGesture(event: PointerEvent) {
+		const axisDistance = getAxisDistance(event, direction.value)
+		if (!isDragging.value) {
+			logDrawerDebug(debugId, 'gesture:finalize-no-drag', {
+				axisDistance: Math.round(axisDistance),
 			})
 			cleanupGestureState()
 			return
@@ -532,18 +548,18 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 				velocity,
 			})
 
-				if (target.type === 'close') {
-					emitRelease(event, false)
-					animateCloseFromGesture()
-				}
-				else if (target.index >= 0) {
-					emitRelease(event, true)
-					animateToSnapPoint(target.index)
-				}
-				else {
-					emitRelease(event, true)
-					animateBackToOpen()
-				}
+			if (target.type === 'close') {
+				emitRelease(event, false)
+				animateCloseFromGesture()
+			}
+			else if (target.index >= 0) {
+				emitRelease(event, true)
+				animateToSnapPoint(target.index)
+			}
+			else {
+				emitRelease(event, true)
+				animateBackToOpen()
+			}
 
 			cleanupGestureState()
 			return
@@ -554,14 +570,14 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 			|| closeDistance >= drawerSize * closeThreshold.value
 		)
 
-			if (shouldClose) {
-				emitRelease(event, false)
-				animateCloseFromGesture()
-			}
-			else {
-				emitRelease(event, true)
-				animateBackToOpen()
-			}
+		if (shouldClose) {
+			emitRelease(event, false)
+			animateCloseFromGesture()
+		}
+		else {
+			emitRelease(event, true)
+			animateBackToOpen()
+		}
 
 		cleanupGestureState()
 	}
@@ -579,6 +595,7 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 
 		pointerId.value = event.pointerId
 		pointerTarget.value = event.target
+		lastPointerEvent.value = event
 		pointerCaptureElement.value = event.target instanceof HTMLElement
 			? event.target
 			: contentElement.value
@@ -600,6 +617,7 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 
 	function handlePointerMove(event: PointerEvent) {
 		if (pointerId.value !== event.pointerId || !contentElement.value) return
+		lastPointerEvent.value = event
 
 		const pointerStartPositionValue = pointerStartPosition.value
 		if (pointerStartPositionValue) {
@@ -652,37 +670,42 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 			}
 		}
 
+		if (event.cancelable) {
+			event.preventDefault()
+		}
+
 		isDragging.value = true
 		logDrawerDebug(debugId, 'gesture:drag-start', {
 			axisDistance: Math.round(axisDistance),
 			closeDistance: Math.round(closeDistance),
 		})
-			if (hasSnapPoints.value) {
+		if (hasSnapPoints.value) {
 			const snapPointsOffset = getSnapPointsOffset()
 			const minOffset = snapPointsOffset[snapPointsOffset.length - 1] ?? 0
 			const maxOffset = dismissible.value ? getVisibleDrawerSize() : (snapPointsOffset[0] ?? dragBaseOffset.value)
 			const offset = clamp(dragBaseOffset.value + closeDistance, minOffset, maxOffset)
-				currentOffset.value = offset
-				setDraggingStyles(offset)
-				emitDrag(event, Math.min(Math.max(offset, 0) / getVisibleDrawerSize(), 1))
-				return
-			}
-
-			const offset = Math.max(closeDistance, 0)
 			currentOffset.value = offset
 			setDraggingStyles(offset)
 			emitDrag(event, Math.min(Math.max(offset, 0) / getVisibleDrawerSize(), 1))
+			return
 		}
+
+		const offset = Math.max(closeDistance, 0)
+		currentOffset.value = offset
+		setDraggingStyles(offset)
+		emitDrag(event, Math.min(Math.max(offset, 0) / getVisibleDrawerSize(), 1))
+	}
 
 	function handlePointerUp(event: PointerEvent) {
 		if (pointerId.value !== event.pointerId) return
+		lastPointerEvent.value = event
 		logDrawerDebug(debugId, 'pointerup', {
 			pointerId: event.pointerId,
 			axisDistance: Math.round(getAxisDistance(event, direction.value)),
 			isDragging: isDragging.value,
 		})
-			finalizeGesture(event)
-		}
+		finalizeGesture(event)
+	}
 
 	function handlePointerCancel(event: PointerEvent) {
 		if (pointerId.value !== event.pointerId) return

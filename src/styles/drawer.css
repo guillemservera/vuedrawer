@@ -103,7 +103,7 @@
 
 .drawer-content[data-drawer-scroll-axis='y'],
 .drawer-content [data-drawer-scroll-axis='y'] {
-	touch-action: pan-y;
+	touch-action: auto;
 }
 
 .drawer-content[data-drawer-scroll-axis='x'],

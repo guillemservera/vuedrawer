@@ -317,7 +317,7 @@ describe('useDrawerGesture', () => {
 		wrapper.unmount()
 	})
 
-	it('settles an active close drag when the viewport takes over the gesture', async () => {
+	it('keeps an active close drag alive through viewport scroll and finalizes from touchend', async () => {
 		setImmediateTransitionResolution(false)
 		const Harness = defineComponent({
 			setup(_, { expose }) {
@@ -416,20 +416,149 @@ describe('useDrawerGesture', () => {
 		window.dispatchEvent(new Event('scroll'))
 
 		expect(exposed.requestOpenChange).not.toHaveBeenCalled()
-		expect(exposed.isDragging.value).toBe(false)
-		expect(exposed.content.style.transition).toBe('transform 420ms ease')
-		expect(exposed.content.style.transform).toBe(getTranslateStyles('bottom', 0))
-		expect(exposed.overlay.style.transition).toBe('opacity 420ms ease')
-		expect(exposed.overlay.style.opacity).toBe('1')
+		expect(exposed.isDragging.value).toBe(true)
+		expect(exposed.content.style.transition).toBe('none')
+		expect(exposed.content.style.transform).toBe(getTranslateStyles('bottom', 80))
 
 		window.dispatchEvent(new Event('touchend'))
 		await new Promise(resolve => setTimeout(resolve, 0))
 
-		expect(exposed.requestOpenChange).not.toHaveBeenCalled()
+		expect(exposed.requestOpenChange).toHaveBeenCalledWith(false)
+		expect(exposed.isDragging.value).toBe(false)
+		expect(exposed.content.style.transition).toBe('transform 420ms ease')
+		expect(exposed.content.style.transform).toBe(getClosedTransform('bottom'))
+		expect(exposed.overlay.style.transition).toBe('opacity 420ms ease')
+		expect(exposed.overlay.style.opacity).toBe('0')
+		expect(exposed.content.style.pointerEvents).toBe('none')
+		expect(exposed.overlay.style.pointerEvents).toBe('none')
 
 		flushTransitionCallbacks()
 
-		expect(exposed.resetInteractiveState).toHaveBeenCalled()
+		expect(exposed.content.style.transition).toBe('')
+		expect(exposed.content.style.transform).toBe(getClosedTransform('bottom'))
+		expect(exposed.resetInteractiveState).not.toHaveBeenCalled()
+
+		wrapper.unmount()
+	})
+
+	it('lets scrollable drawer content scroll before closing from the top edge', () => {
+		const Harness = defineComponent({
+			setup(_, { expose }) {
+				const content = document.createElement('div')
+				const overlay = document.createElement('div')
+				const scrollArea = document.createElement('div')
+				const item = document.createElement('div')
+
+				Object.defineProperties(scrollArea, {
+					clientHeight: {
+						configurable: true,
+						value: 240,
+					},
+					scrollHeight: {
+						configurable: true,
+						value: 720,
+					},
+					scrollTop: {
+						configurable: true,
+						writable: true,
+						value: 120,
+					},
+				})
+
+				Object.assign(item, {
+					setPointerCapture: vi.fn(),
+					hasPointerCapture: vi.fn(() => false),
+					releasePointerCapture: vi.fn(),
+				})
+
+				scrollArea.appendChild(item)
+				content.appendChild(scrollArea)
+
+				const open = ref(true)
+				const gestureClosing = ref(false)
+				const isDragging = ref(false)
+				const preventCloseAutoFocusOnce = ref(false)
+				const requestOpenChange = vi.fn((value: boolean) => {
+					open.value = value
+				})
+
+				const gesture = useDrawerGesture({
+					debugId: 'bottom#test',
+					open,
+					openedAt: ref(Date.now() - 1000),
+					direction: ref('bottom'),
+					dismissible: ref(true),
+					closeThreshold: ref(0.25),
+					scrollLockTimeout: ref(0),
+					snapToSequentialPoint: ref(false),
+					hasSnapPoints: ref(false),
+					activeSnapPointIndex: ref(0),
+					fadeFromIndex: ref<number | undefined>(undefined),
+					contentElement: ref(content),
+					overlayElement: ref(overlay),
+					isDragging,
+					gestureClosing,
+					preventCloseAutoFocusOnce,
+					requestOpenChange,
+					setSkipCloseAnimation: () => undefined,
+					setGestureClosing(value: boolean) {
+						gestureClosing.value = value
+						if (value) {
+							isDragging.value = false
+						}
+					},
+					emitDrag: vi.fn(),
+					emitRelease: vi.fn(),
+					getContentTransition: () => 'transform 420ms ease',
+					getOverlayTransition: () => 'opacity 420ms ease',
+					getVisibleDrawerSize: () => 320,
+					getSnapPointsOffset: () => [],
+					getRestingOffset: () => 0,
+					getRestingOverlayOpacity: () => 1,
+					animateToSnapPoint: () => undefined,
+					parentContext: null,
+					resetInteractiveState: () => undefined,
+				})
+
+				expose({
+					gesture,
+					isDragging,
+					item,
+					requestOpenChange,
+					scrollArea,
+				})
+
+				return () => null
+			},
+		})
+
+		const wrapper = mount(Harness)
+		const exposed = wrapper.vm.$.exposed as {
+			gesture: ReturnType<typeof useDrawerGesture>
+			isDragging: { value: boolean }
+			item: HTMLElement
+			requestOpenChange: ReturnType<typeof vi.fn>
+			scrollArea: HTMLElement
+		}
+
+		const blockedMove = createPointerEvent('pointermove', exposed.item, 1, 90)
+		exposed.gesture.handlePointerDown(createPointerEvent('pointerdown', exposed.item, 1, 0))
+		exposed.gesture.handlePointerMove(blockedMove)
+		exposed.gesture.handlePointerUp(createPointerEvent('pointerup', exposed.item, 1, 90))
+
+		expect(exposed.requestOpenChange).not.toHaveBeenCalled()
+		expect(exposed.isDragging.value).toBe(false)
+		expect(blockedMove.defaultPrevented).toBe(false)
+
+		exposed.scrollArea.scrollTop = 0
+
+		const closeMove = createPointerEvent('pointermove', exposed.item, 2, 140)
+		exposed.gesture.handlePointerDown(createPointerEvent('pointerdown', exposed.item, 2, 0))
+		exposed.gesture.handlePointerMove(closeMove)
+		exposed.gesture.handlePointerUp(createPointerEvent('pointerup', exposed.item, 2, 140))
+
+		expect(exposed.requestOpenChange).toHaveBeenCalledWith(false)
+		expect(closeMove.defaultPrevented).toBe(true)
 
 		wrapper.unmount()
 	})

@@ -154,6 +154,12 @@ onBeforeUnmount(() => {
 	box-sizing: border-box;
 }
 
+html {
+	min-height: 100%;
+	overflow-y: scroll;
+	scrollbar-gutter: stable;
+}
+
 body {
 	margin: 0;
 	background: var(--demo-bg);
@@ -167,6 +173,10 @@ body {
 		"Segoe UI",
 		sans-serif;
 	transition: background-color 180ms ease, color 180ms ease;
+}
+
+#app {
+	min-height: 100%;
 }
 
 button,
