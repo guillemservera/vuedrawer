@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, useAttrs } from 'vue'
 import type { PropType } from 'vue'
+import { DrawerPrimitive } from '../utils/drawerPrimitive'
 import { useDrawerRootContext } from '../utils/drawerContext'
-import type { DrawerAnimation, DrawerCloseScope, DrawerRootContext } from '../utils/drawerTypes'
+import type { DrawerAnimation, DrawerCloseScope, DrawerPrimitiveAs, DrawerRootContext } from '../utils/drawerTypes'
 
 defineOptions({
 	inheritAttrs: false,
@@ -22,10 +23,35 @@ const props = defineProps({
 		default: 'current',
 		validator: (value: string) => ['current', 'all'].includes(value),
 	},
+	as: {
+		type: [String, Object, Function] as PropType<DrawerPrimitiveAs>,
+		default: 'button',
+	},
+	asChild: {
+		type: Boolean,
+		default: false,
+	},
 })
 const attrs = useAttrs()
 const root = useDrawerRootContext()
 const state = computed(() => root.open.value ? 'open' : 'closed')
+const closeProps = computed(() => {
+	const primitiveProps: Record<string, unknown> = {
+		'data-drawer-close': '',
+		'data-state': state.value,
+		onClick: handleClick,
+	}
+
+	if (props.asChild || props.as === 'button') {
+		primitiveProps.type = 'button'
+	}
+
+	if (props.disabled) {
+		primitiveProps.disabled = true
+	}
+
+	return primitiveProps
+})
 
 function getCloseTargets() {
 	const targets: DrawerRootContext[] = [root]
@@ -57,14 +83,12 @@ function handleClick(event: MouseEvent) {
 </script>
 
 <template>
-	<button
+	<DrawerPrimitive
+		:as="props.as"
+		:as-child="props.asChild"
+		:element-props="closeProps"
 		v-bind="attrs"
-		type="button"
-		:disabled="props.disabled || undefined"
-		data-drawer-close=""
-		:data-state="state"
-		@click="handleClick"
 	>
 		<slot />
-	</button>
+	</DrawerPrimitive>
 </template>

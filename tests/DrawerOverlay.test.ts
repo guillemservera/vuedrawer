@@ -109,8 +109,8 @@ describe('DrawerOverlay', () => {
 		const probe = wrapper.getComponent(ContextProbe).vm.$.exposed as {
 			root: ReturnType<typeof useDrawerRootContext>
 		}
-		expect(probe.root.closeAnimation.value).toBe('fade')
-		expect(overlay.attributes('data-close-animation')).toBe('fade')
+		expect(probe.root.closeAnimation.value).toBe('slide')
+		expect(overlay.attributes('data-close-animation')).toBe('slide')
 
 		wrapper.unmount()
 	})

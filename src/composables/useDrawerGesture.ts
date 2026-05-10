@@ -37,8 +37,8 @@ interface UseDrawerGestureOptions {
 	setGestureClosing: (value: boolean) => void
 	emitDrag: (pointerEvent: PointerEvent, percentageDragged: number) => void
 	emitRelease: (pointerEvent: PointerEvent, open: boolean) => void
-	getContentTransition: (options?: { instant?: boolean }) => string
-	getOverlayTransition: (options?: { instant?: boolean }) => string
+	getContentTransition: (options?: { instant?: boolean, close?: boolean }) => string
+	getOverlayTransition: (options?: { instant?: boolean, close?: boolean }) => string
 	getVisibleDrawerSize: () => number
 	getSnapPointBaseSize: () => number
 	getSnapPointsOffset: () => number[]
@@ -465,11 +465,11 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 		})
 		restoreBodyPointerEvents()
 
-		content.style.transition = getContentTransition()
+		content.style.transition = getContentTransition({ close: true })
 		content.style.transform = getClosedTransform(direction.value)
 
 		if (overlay) {
-			overlay.style.transition = getOverlayTransition()
+			overlay.style.transition = getOverlayTransition({ close: true })
 			overlay.style.opacity = '0'
 		}
 

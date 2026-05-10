@@ -2,9 +2,11 @@
 import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue'
 import {
 	DRAWER_DEFAULT_CLOSE_THRESHOLD,
+	DRAWER_DEFAULT_CLOSE_TRANSITION_DURATION_MS,
 	DRAWER_DEFAULT_SCROLL_LOCK_TIMEOUT,
 	DRAWER_DEFAULT_TRANSITION_DURATION_MS,
 	DRAWER_EASE,
+	getNestedParentTransform,
 	getTranslateStyles,
 } from '../utils/drawerConstants'
 import { provideDrawerRootContext, useOptionalDrawerRootContext } from '../utils/drawerContext'
@@ -29,7 +31,7 @@ const props = withDefaults(defineProps<DrawerRootProps>(), {
 	preventScroll: true,
 	noBodyStyles: false,
 	animation: 'slide',
-	closeAnimation: 'fade',
+	closeAnimation: 'slide',
 	direction: 'bottom',
 	closeThreshold: DRAWER_DEFAULT_CLOSE_THRESHOLD,
 	scrollLockTimeout: DRAWER_DEFAULT_SCROLL_LOCK_TIMEOUT,
@@ -58,6 +60,7 @@ const shouldAnimateInitialOpen = ref(!props.defaultOpen)
 const skipCloseAnimation = ref(false)
 const closeAnimationOverride = ref<DrawerAnimation | null>(null)
 const preventCloseAutoFocusOnce = ref(false)
+const nestedChildOpen = ref(false)
 const debugId = createDrawerDebugId(props.direction, props.nested)
 const domIdBase = `vuedrawer-${debugId.replace(/[^a-zA-Z0-9_-]+/g, '-').toLowerCase()}`
 const defaultContentId = `${domIdBase}-content`
@@ -67,6 +70,7 @@ const contentId = ref(defaultContentId)
 const titleId = ref<string | undefined>()
 const descriptionId = ref<string | undefined>()
 let skipNextActiveSnapPointAnimation = false
+let nestedParentTransitionCleanup: (() => void) | null = null
 
 interface SyncRestingStyleOptions {
 	overlayOpacity?: number
@@ -133,7 +137,7 @@ function maybeEnableSkipCloseAnimation(source: 'computed-set' | 'request-open-ch
 
 	if (!contentElement.value) return false
 
-	const durationMs = getTransitionDuration()
+	const durationMs = Math.min(getTransitionDuration(), getTransitionDuration({ close: true }))
 
 	if (Number.isNaN(durationMs) || durationMs > 10) {
 		return false
@@ -334,6 +338,7 @@ function registerContentElement(element: HTMLElement | null) {
 	}
 
 	syncRestingStyles()
+	applyNestedParentTransformIfNeeded({ instant: true })
 }
 
 function registerOverlayElement(element: HTMLElement | null) {
@@ -341,36 +346,121 @@ function registerOverlayElement(element: HTMLElement | null) {
 	syncRestingStyles()
 }
 
-function getTransitionDuration(options: { instant?: boolean } = {}) {
+function getTransitionDuration(options: { instant?: boolean, close?: boolean } = {}) {
 	if (options.instant || props.instantClose) return 1
 	const element = getTransitionElement()
-	if (!element) return DRAWER_DEFAULT_TRANSITION_DURATION_MS
-	const duration = Number.parseFloat(
-		window.getComputedStyle(element).getPropertyValue('--drawer-duration-ms').trim(),
-	)
-	return Number.isFinite(duration) && duration > 0 ? duration : DRAWER_DEFAULT_TRANSITION_DURATION_MS
+	if (!element) {
+		return options.close ? DRAWER_DEFAULT_CLOSE_TRANSITION_DURATION_MS : DRAWER_DEFAULT_TRANSITION_DURATION_MS
+	}
+
+	const styles = window.getComputedStyle(element)
+	const baseDuration = parseCssNumber(styles.getPropertyValue('--drawer-duration-ms'))
+	const baseDurationMs = baseDuration ?? DRAWER_DEFAULT_TRANSITION_DURATION_MS
+
+	if (!options.close) return baseDurationMs
+
+	const closeDuration = parseCssNumber(styles.getPropertyValue('--drawer-close-duration-ms'))
+	if (baseDurationMs <= 10) return baseDurationMs
+	return closeDuration ?? DRAWER_DEFAULT_CLOSE_TRANSITION_DURATION_MS
+}
+
+function parseCssNumber(value: string) {
+	const duration = Number.parseFloat(value.trim())
+	return Number.isFinite(duration) && duration > 0 ? duration : null
 }
 
 function getTransitionElement() {
 	return contentElement.value ?? overlayElement.value
 }
 
-function getTransitionEase() {
+function getTransitionEase(options: { close?: boolean } = {}) {
 	const element = getTransitionElement()
 	if (!element) return DRAWER_EASE
-	return window.getComputedStyle(element).getPropertyValue('--drawer-ease').trim() || DRAWER_EASE
+	const styles = window.getComputedStyle(element)
+	if (options.close) {
+		const closeEase = styles.getPropertyValue('--drawer-close-ease').trim()
+		if (closeEase) return closeEase
+	}
+	return styles.getPropertyValue('--drawer-ease').trim() || DRAWER_EASE
 }
 
-function getContentTransition(options: { instant?: boolean } = {}) {
-	return `transform ${getTransitionDuration(options)}ms ${getTransitionEase()}`
+function getContentTransition(options: { instant?: boolean, close?: boolean } = {}) {
+	return `transform ${getTransitionDuration(options)}ms ${getTransitionEase(options)}`
 }
 
-function getOverlayTransition(options: { instant?: boolean } = {}) {
-	return `opacity ${getTransitionDuration(options)}ms ${getTransitionEase()}`
+function getOverlayTransition(options: { instant?: boolean, close?: boolean } = {}) {
+	return `opacity ${getTransitionDuration(options)}ms ${getTransitionEase(options)}`
 }
 
 function getRestingTransform() {
 	return getTranslateStyles(props.direction, getRestingOffset())
+}
+
+function getNestedCompositeTransform() {
+	const restingOffset = getRestingOffset()
+	const nestedTransform = getNestedParentTransform(props.direction)
+
+	if (restingOffset <= 0) return nestedTransform
+	return `${getTranslateStyles(props.direction, restingOffset)} ${nestedTransform}`
+}
+
+function cancelNestedParentTransition() {
+	nestedParentTransitionCleanup?.()
+	nestedParentTransitionCleanup = null
+}
+
+function clearNestedParentTransform() {
+	cancelNestedParentTransition()
+	nestedChildOpen.value = false
+
+	const content = contentElement.value
+	if (!content) return
+
+	content.style.transition = ''
+	content.style.transform = ''
+}
+
+function applyNestedParentTransformIfNeeded(options: { instant?: boolean } = {}) {
+	const content = contentElement.value
+	if (!content || !nestedChildOpen.value || !open.value) return
+
+	content.style.transition = getContentTransition({ instant: options.instant })
+	content.style.transform = getNestedCompositeTransform()
+}
+
+function setNestedChildOpen(value: boolean, options: { instant?: boolean } = {}) {
+	if (nestedChildOpen.value === value) return
+	nestedChildOpen.value = value
+
+	const content = contentElement.value
+	if (!content) return
+
+	cancelNestedParentTransition()
+
+	if (!open.value) {
+		content.style.transition = ''
+		content.style.transform = ''
+		return
+	}
+
+	content.style.transition = getContentTransition({
+		close: !value,
+		instant: options.instant,
+	})
+	content.style.transform = value ? getNestedCompositeTransform() : getRestingTransform()
+
+	if (value) return
+
+	const cleanup = waitForDrawerTransition(content, 'transform', () => {
+		if (nestedParentTransitionCleanup === cleanup) {
+			nestedParentTransitionCleanup = null
+		}
+		if (nestedChildOpen.value) return
+		content.style.transition = ''
+		content.style.transform = ''
+		syncRestingStyles()
+	})
+	nestedParentTransitionCleanup = cleanup
 }
 
 function animateToSnapPoint(index: number, options: { updateActiveSnapPoint?: boolean } = {}) {
@@ -445,6 +535,7 @@ function resetInteractiveState() {
 	isDragging.value = false
 	gestureClosing.value = false
 	syncRestingStyles()
+	applyNestedParentTransformIfNeeded({ instant: true })
 
 	if (open.value) {
 		scheduleBodyPointerEventsRestore()
@@ -502,6 +593,9 @@ function handleAfterClose() {
 	gestureClosing.value = false
 	if (preventCloseAutoFocusOnce.value) {
 		preventCloseAutoFocusOnce.value = false
+	}
+	if (props.nested) {
+		parentContext?.setNestedChildOpen(false, { instant: true })
 	}
 	scrollLockOpen.value = false
 	emit('after-close')
@@ -571,6 +665,7 @@ provideDrawerRootContext({
 	handleContentError,
 	setGestureClosing,
 	setSkipCloseAnimation,
+	setNestedChildOpen,
 	resetInteractiveState,
 	getContentTransition,
 	getOverlayTransition,
@@ -735,6 +830,10 @@ onMounted(() => {
 
 watch(open, (isOpen) => {
 	if (isOpen) {
+		if (props.nested) {
+			parentContext?.setNestedChildOpen(true)
+		}
+
 		if (hasSnapPoints.value && props.activeSnapPoint === undefined && uncontrolledActiveSnapPoint.value === null) {
 			uncontrolledActiveSnapPoint.value = resolveInitialSnapPoint()
 		}
@@ -750,7 +849,15 @@ watch(open, (isOpen) => {
 		return
 	}
 
+	if (nestedChildOpen.value) {
+		clearNestedParentTransform()
+	}
+
 	maybeEnableSkipCloseAnimation('watch-close')
+
+	if (props.nested) {
+		parentContext?.setNestedChildOpen(false)
+	}
 
 	openedAt.value = null
 	restoreBodyPointerEvents()
@@ -760,6 +867,9 @@ onBeforeUnmount(() => {
 	if (typeof window !== 'undefined') {
 		window.removeEventListener('resize', handleSnapPointViewportResize)
 		window.visualViewport?.removeEventListener('resize', handleSnapPointViewportResize)
+	}
+	if (props.nested) {
+		parentContext?.setNestedChildOpen(false, { instant: true })
 	}
 	resetInteractiveState()
 })

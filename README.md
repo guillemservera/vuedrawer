@@ -66,7 +66,7 @@ VueDrawer ships only the functional CSS required for transforms, transitions, to
 - Behaviorally opinionated drawer lifecycle.
 - Pointer gestures and swipe to close.
 - Snap points with controlled active snap point.
-- Nested drawers with clean stacking and top-layer dismissal.
+- Nested drawers with clean stacking, top-layer dismissal and parent-only depth scaling.
 - Mobile-friendly scroll locking and iOS overscroll guards.
 - Reka/Radix-inspired dismiss layer without runtime dependencies.
 - Escape handling that closes only the top active drawer.
@@ -114,7 +114,7 @@ import {
 | `preventScroll` | `boolean` | `true` |
 | `noBodyStyles` | `boolean` | `false` |
 | `animation` | `'slide' \| 'fade'` | `'slide'` |
-| `closeAnimation` | `'slide' \| 'fade'` | `'fade'` |
+| `closeAnimation` | `'slide' \| 'fade'` | `'slide'` |
 | `direction` | `'top' \| 'bottom' \| 'left' \| 'right'` | `'bottom'` |
 | `closeThreshold` | `number` | `0.25` |
 | `scrollLockTimeout` | `number` | `500` |
@@ -128,6 +128,14 @@ import {
 
 Use `DrawerRootNested` instead of setting `nested` manually for nested drawers.
 
+### Trigger Props
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `as` | `string \| Component` | `'button'` |
+| `asChild` | `boolean` | `false` |
+| `disabled` | `boolean` | `false` |
+
 ### Handle Props
 
 | Prop | Type | Default |
@@ -138,6 +146,8 @@ Use `DrawerRootNested` instead of setting `nested` manually for nested drawers.
 
 | Prop | Type | Default |
 | --- | --- | --- |
+| `as` | `string \| Component` | `'button'` |
+| `asChild` | `boolean` | `false` |
 | `animation` | `'slide' \| 'fade'` | `undefined` |
 | `disabled` | `boolean` | `false` |
 | `scope` | `'current' \| 'all'` | `'current'` |
@@ -146,9 +156,17 @@ Use `DrawerRootNested` instead of setting `nested` manually for nested drawers.
 
 `dismissible=false` prevents Escape, modal outside pointer, close-direction drag and overlay dismissal from closing the drawer. Use it with controlled state so your app still has an explicit way to close.
 
-`animation` controls the open animation and `closeAnimation` controls normal non-gesture closes. For example, `animation="fade" closeAnimation="slide"` gives a fade-in and the classic slide-out close. Drag gestures still follow the pointer and close with transform. The fade defaults are intentionally quick (`260ms` in, `180ms` out) with no movement, and can be tuned with CSS variables such as `--drawer-fade-enter-duration`, `--drawer-fade-leave-duration`, `--drawer-fade-ease`, and `--drawer-fade-enter-offset`.
+`animation` controls the open animation and `closeAnimation` controls normal non-gesture closes. The default matches Vaul's slide-in and slide-out feel, with a shorter close duration than open duration. For example, `animation="fade" closeAnimation="slide"` gives a fade-in and the classic slide-out close. Drag gestures still follow the pointer and close with transform. The fade defaults are intentionally quick (`260ms` in, `180ms` out) with no movement, and can be tuned with CSS variables such as `--drawer-fade-enter-duration`, `--drawer-fade-leave-duration`, `--drawer-fade-ease`, and `--drawer-fade-enter-offset`.
 
-`DrawerTitle` and `DrawerDescription` automatically register generated IDs with `DrawerContent`, which sets `aria-labelledby` and `aria-describedby` unless you provide those attributes yourself. `DrawerTrigger` renders an accessible button with `aria-haspopup="dialog"`, `aria-expanded`, and `aria-controls`. `DrawerClose` renders a button that closes the active root. Inside nested drawers, set `scope="all"` to close the top-level root and let the nested stack clean itself up.
+`DrawerTitle` and `DrawerDescription` automatically register generated IDs with `DrawerContent`, which sets `aria-labelledby` and `aria-describedby` unless you provide those attributes yourself. `DrawerTrigger` renders an accessible button with `aria-haspopup="dialog"`, `aria-expanded`, and `aria-controls`. `DrawerClose` renders a button that closes the active root. Inside nested drawers, set `scope="all"` to close the top-level root and let the nested stack clean itself up. Opening a nested drawer adds Vaul-style depth only to the direct parent drawer content; VueDrawer does not scale the page background globally.
+
+`DrawerTrigger` and `DrawerClose` support `as` for changing the rendered element and `asChild` for merging drawer behavior into their only child. Use `asChild` when wrapping a design-system button so the DOM keeps a single interactive element instead of nesting a button inside another button.
+
+```vue
+<DrawerTrigger as-child>
+  <MyButton>Open drawer</MyButton>
+</DrawerTrigger>
+```
 
 `preventScroll` controls the document/body scroll-lock layer. Keep it enabled unless your app already owns scroll locking. `noBodyStyles` keeps iOS touch and overscroll guards active, but skips writing positioning styles to `document.body`.
 
@@ -210,8 +228,10 @@ import type {
   DrawerAnimation,
   DrawerCloseScope,
   DrawerFocusOutsideEvent,
+  DrawerHandleProps,
   DrawerInteractOutsideEvent,
   DrawerPointerDownOutsideEvent,
+  DrawerPrimitiveAs,
   DrawerRootProps,
   DrawerRootEmits,
   DrawerSnapPoint,
@@ -324,13 +344,16 @@ Animation can be tuned with CSS variables on your drawer content and overlay:
 | `--drawer-duration` | `420ms` |
 | `--drawer-duration-ms` | `420` |
 | `--drawer-ease` | `cubic-bezier(0.32, 0.72, 0, 1)` |
+| `--drawer-close-duration` | `260ms` |
+| `--drawer-close-duration-ms` | `260` |
+| `--drawer-close-ease` | `var(--drawer-ease)` |
 | `--drawer-offscreen-offset` | `24px` |
 | `--drawer-fade-enter-duration` | `260ms` |
 | `--drawer-fade-leave-duration` | `180ms` |
 | `--drawer-fade-ease` | `cubic-bezier(0.2, 0, 0, 1)` |
 | `--drawer-fade-enter-offset` | `0px` |
 
-`--drawer-duration` and `--drawer-duration-ms` should represent the same value; the `ms` variant is used by gesture-driven inline transitions.
+`--drawer-duration` and `--drawer-duration-ms` should represent the same value; the `ms` variant is used by gesture-driven inline transitions. The same applies to `--drawer-close-duration` and `--drawer-close-duration-ms`.
 
 When page scroll is locked on desktop, VueDrawer keeps the lock active until the close transition finishes, sets `--vuedrawer-scrollbar-width` on `:root`, and compensates `document.body` padding so fixed layouts do not jump. If the host page uses `scrollbar-gutter: stable`, VueDrawer temporarily normalizes the root gutter while locked so the scrollbar space is not reserved twice.
 

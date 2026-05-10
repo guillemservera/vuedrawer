@@ -141,6 +141,27 @@ const FadeAnimationHarness = defineComponent({
 	`,
 })
 
+const CloseDurationHarness = defineComponent({
+	components: {
+		ContextProbe,
+		DrawerContent,
+		DrawerOverlay,
+		DrawerRoot,
+	},
+	template: `
+		<DrawerRoot default-open>
+			<DrawerOverlay
+				style="--drawer-duration-ms: 420; --drawer-ease: ease; --drawer-close-duration-ms: 240; --drawer-close-ease: ease-out;"
+			/>
+			<DrawerContent
+				aria-label="Test drawer"
+				style="--drawer-duration-ms: 420; --drawer-ease: ease; --drawer-close-duration-ms: 240; --drawer-close-ease: ease-out;"
+			/>
+			<ContextProbe ref="probe" />
+		</DrawerRoot>
+	`,
+})
+
 const SnapPointsHarness = defineComponent({
 	components: {
 		ContextProbe,
@@ -345,6 +366,29 @@ describe('DrawerRoot', () => {
 
 		expect(probe.root.animation.value).toBe('fade')
 		expect(wrapper.get('[data-drawer-content]').attributes('data-animation')).toBe('fade')
+
+		wrapper.unmount()
+	})
+
+	it('uses a shorter close transition duration for drawer-owned close animations', async () => {
+		const wrapper = mount(CloseDurationHarness, {
+			attachTo: document.body,
+			global: {
+				stubs: {
+					Transition: false,
+				},
+			},
+		})
+
+		await nextTick()
+
+		const probe = wrapper.getComponent(ContextProbe).vm.$.exposed as {
+			root: ReturnType<typeof useDrawerRootContext>
+		}
+
+		expect(probe.root.getContentTransition()).toBe('transform 420ms ease')
+		expect(probe.root.getContentTransition({ close: true })).toBe('transform 240ms ease-out')
+		expect(probe.root.getOverlayTransition({ close: true })).toBe('opacity 240ms ease-out')
 
 		wrapper.unmount()
 	})

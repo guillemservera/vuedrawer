@@ -5,6 +5,9 @@
 	--drawer-duration: 420ms;
 	--drawer-duration-ms: 420;
 	--drawer-ease: cubic-bezier(0.32, 0.72, 0, 1);
+	--drawer-close-duration: 260ms;
+	--drawer-close-duration-ms: 260;
+	--drawer-close-ease: var(--drawer-ease);
 	--drawer-fade-enter-duration: 260ms;
 	--drawer-fade-leave-duration: 180ms;
 	--drawer-fade-ease: cubic-bezier(0.2, 0, 0, 1);
@@ -116,11 +119,11 @@
 }
 
 .drawer-content-leave-active {
-	transition: transform var(--drawer-duration, 420ms) var(--drawer-ease);
+	transition: transform var(--drawer-close-duration, 260ms) var(--drawer-close-ease, var(--drawer-ease));
 }
 
 .drawer-content-leave-active--slide {
-	transition: transform var(--drawer-duration, 420ms) var(--drawer-ease);
+	transition: transform var(--drawer-close-duration, 260ms) var(--drawer-close-ease, var(--drawer-ease));
 }
 
 .drawer-content-leave-active--instant {
@@ -277,7 +280,7 @@
 }
 
 .drawer-overlay-leave-active {
-	transition: opacity var(--drawer-duration, 420ms) var(--drawer-ease);
+	transition: opacity var(--drawer-close-duration, 260ms) var(--drawer-close-ease, var(--drawer-ease));
 }
 
 .drawer-overlay[data-close-animation='fade'].drawer-overlay-leave-active,

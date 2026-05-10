@@ -18,7 +18,7 @@ const props = defineProps<{ styled: boolean }>()
 const animations: DrawerAnimation[] = ['slide', 'fade']
 const open = ref(false)
 const animation = ref<DrawerAnimation>('slide')
-const closeAnimation = ref<DrawerAnimation>('fade')
+const closeAnimation = ref<DrawerAnimation>('slide')
 const content = computed(() => contentClass(props.styled, 'bottom'))
 const overlay = computed(() => overlayClass(props.styled))
 const handle = computed(() => handleClass(props.styled))

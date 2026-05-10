@@ -26,7 +26,7 @@ const rootContext = vi.hoisted(() => {
 			handleOnly: box(false),
 			container: box<HTMLElement | string | null>(null),
 			animation: box<'slide' | 'fade'>('slide'),
-			closeAnimation: box<'slide' | 'fade'>('fade'),
+			closeAnimation: box<'slide' | 'fade'>('slide'),
 			closeAnimationOverride: box<'slide' | 'fade' | null>(null),
 		closeThreshold: box(0.25),
 		scrollLockTimeout: box(500),
@@ -94,7 +94,7 @@ describe('DrawerContent', () => {
 		rootContext.gestureClosing.value = false
 		rootContext.open.value = true
 		rootContext.animation.value = 'slide'
-		rootContext.closeAnimation.value = 'fade'
+		rootContext.closeAnimation.value = 'slide'
 		rootContext.closeAnimationOverride.value = null
 		rootContext.skipCloseAnimation.value = false
 		rootContext.shouldAnimateInitialOpen.value = true
@@ -182,27 +182,27 @@ describe('DrawerContent', () => {
 		wrapper.unmount()
 	})
 
-	it('uses fade animation for normal closes even when opening with slide', () => {
+	it('uses slide animation for normal closes by default', () => {
 		rootContext.open.value = false
 		rootContext.gestureClosing.value = true
-
-		const wrapper = mountDrawerContent()
-
-		expect(wrapper.get('[data-drawer-content]').attributes('data-animation')).toBe('fade')
-		expect(wrapper.get('[data-drawer-content]').attributes('data-close-animation')).toBe('fade')
-
-		wrapper.unmount()
-	})
-
-	it('uses configured slide animation for normal closes', () => {
-		rootContext.open.value = false
-		rootContext.gestureClosing.value = true
-		rootContext.closeAnimation.value = 'slide'
 
 		const wrapper = mountDrawerContent()
 
 		expect(wrapper.get('[data-drawer-content]').attributes('data-animation')).toBe('slide')
 		expect(wrapper.get('[data-drawer-content]').attributes('data-close-animation')).toBe('slide')
+
+		wrapper.unmount()
+	})
+
+	it('uses configured fade animation for normal closes', () => {
+		rootContext.open.value = false
+		rootContext.gestureClosing.value = true
+		rootContext.closeAnimation.value = 'fade'
+
+		const wrapper = mountDrawerContent()
+
+		expect(wrapper.get('[data-drawer-content]').attributes('data-animation')).toBe('fade')
+		expect(wrapper.get('[data-drawer-content]').attributes('data-close-animation')).toBe('fade')
 
 		wrapper.unmount()
 	})

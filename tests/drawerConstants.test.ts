@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
 	getCloseDirectionSign,
 	getClosedTransform,
+	getNestedParentTransform,
 	getTranslateStyles,
 	isVerticalDrawer,
 } from '../src/utils/drawerConstants'
@@ -33,5 +34,12 @@ describe('drawerConstants', () => {
 		expect(getClosedTransform('top')).toContain('-100%')
 		expect(getClosedTransform('left')).toContain('-100%')
 		expect(getClosedTransform('right')).toContain('100%')
+	})
+
+	it('builds parent transforms for nested drawers without targeting the page background', () => {
+		expect(getNestedParentTransform('bottom')).toContain('translate3d(0, -16px, 0)')
+		expect(getNestedParentTransform('top')).toContain('translate3d(0, 16px, 0)')
+		expect(getNestedParentTransform('left')).toContain('translate3d(16px, 0, 0)')
+		expect(getNestedParentTransform('right')).toContain('translate3d(-16px, 0, 0)')
 	})
 })

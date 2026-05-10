@@ -155,7 +155,7 @@ describe('DrawerRootNested', () => {
 		expect((wrapper.vm as unknown as { childOpen: boolean }).childOpen).toBe(false)
 	})
 
-	it('does not transform the parent drawer while a nested child is open', async () => {
+	it('scales the parent drawer while a nested child is open', async () => {
 		const wrapper = mount(NestedInstantHarness, {
 			attachTo: document.body,
 			global: {
@@ -173,12 +173,13 @@ describe('DrawerRootNested', () => {
 		}
 		const content = parentProbe.root.contentElement.value!
 
-		expect(content.style.transform).toBe('')
+		expect(content.style.transform).toContain('scale(')
+		expect(content.style.transform).toContain('translate3d(0, -16px, 0)')
 
 		;(wrapper.vm as unknown as { childOpen: boolean }).childOpen = false
 		await nextTick()
 
-		expect(content.style.transform).toBe('')
+		expect(content.style.transform).toBe('translate3d(0, 0px, 0)')
 
 		wrapper.unmount()
 	})

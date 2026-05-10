@@ -37,7 +37,7 @@ const observedOpen = ref(false)
 
 const direction = ref<DrawerDirection>('bottom')
 const animation = ref<DrawerAnimation>('slide')
-const closeAnimation = ref<DrawerAnimation>('fade')
+const closeAnimation = ref<DrawerAnimation>('slide')
 const fadeEnterDuration = ref(260)
 const fadeLeaveDuration = ref(180)
 const fadeOffset = ref(0)

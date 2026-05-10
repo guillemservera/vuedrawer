@@ -1,10 +1,11 @@
-import type { HTMLAttributes, Ref } from 'vue'
+import type { Component, HTMLAttributes, Ref } from 'vue'
 
 export type DrawerDirection = 'top' | 'bottom' | 'left' | 'right'
 export type DrawerAnimation = 'slide' | 'fade'
 export type DrawerCloseScope = 'current' | 'all'
 export type DrawerSnapPoint = number | string
 export type DrawerPortalTarget = string | HTMLElement
+export type DrawerPrimitiveAs = string | Component
 export type DrawerPointerDownOutsideEvent = CustomEvent<{ originalEvent: PointerEvent }>
 export type DrawerFocusOutsideEvent = CustomEvent<{ originalEvent: FocusEvent }>
 export type DrawerInteractOutsideEvent = DrawerPointerDownOutsideEvent | DrawerFocusOutsideEvent
@@ -135,9 +136,10 @@ export interface DrawerRootContext {
 	handleContentError: (error: unknown, instance: unknown, info: string) => void
 	setGestureClosing: (value: boolean) => void
 	setSkipCloseAnimation: (value: boolean) => void
+	setNestedChildOpen: (value: boolean, options?: { instant?: boolean }) => void
 	resetInteractiveState: () => void
-	getContentTransition: (options?: { instant?: boolean }) => string
-	getOverlayTransition: (options?: { instant?: boolean }) => string
+	getContentTransition: (options?: { instant?: boolean, close?: boolean }) => string
+	getOverlayTransition: (options?: { instant?: boolean, close?: boolean }) => string
 }
 
 export interface DrawerHandleProps {
@@ -147,12 +149,16 @@ export interface DrawerHandleProps {
 
 export interface DrawerTriggerProps {
 	disabled?: boolean
+	as?: DrawerPrimitiveAs
+	asChild?: boolean
 }
 
 export interface DrawerCloseProps {
 	animation?: DrawerAnimation
 	disabled?: boolean
 	scope?: DrawerCloseScope
+	as?: DrawerPrimitiveAs
+	asChild?: boolean
 }
 
 export interface DrawerPortalProps {
