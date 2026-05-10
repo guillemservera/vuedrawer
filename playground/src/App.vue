@@ -399,6 +399,10 @@ select {
 	z-index: 70;
 }
 
+.demo-content--nested-parent {
+	min-height: min(76vh, 620px);
+}
+
 .demo-content--bottom {
 	bottom: 0;
 	inset-inline: 0;

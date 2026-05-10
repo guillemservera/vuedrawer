@@ -8,7 +8,6 @@ export const DRAWER_VELOCITY_THRESHOLD = 0.4
 export const DRAWER_FAST_SWIPE_VELOCITY = 2
 export const DRAWER_DRAG_ACTIVATION_PX = 6
 export const DRAWER_CLICK_SUPPRESS_MS = 180
-export const DRAWER_NESTED_DISPLACEMENT = 16
 
 export function isVerticalDrawer(direction: DrawerDirection) {
 	return direction === 'top' || direction === 'bottom'
@@ -52,30 +51,4 @@ export function getTranslateStyles(direction: DrawerDirection, distance: number)
 		case 'right':
 			return `translate3d(${distance}px, 0, 0)`
 	}
-}
-
-export function getNestedTransform(direction: DrawerDirection, closeProgress: number) {
-	const clamped = Math.min(Math.max(closeProgress, 0), 1)
-	const openProgress = 1 - clamped
-	const viewportWidth = typeof window !== 'undefined' ? Math.max(window.innerWidth, 1) : 375
-	const openScale = Math.max((viewportWidth - DRAWER_NESTED_DISPLACEMENT) / viewportWidth, 0.94)
-	const scale = 1 - openProgress * (1 - openScale)
-
-	if (direction === 'left') {
-		const x = openProgress * DRAWER_NESTED_DISPLACEMENT
-		return `scale(${scale}) translate3d(${x}px, 0, 0)`
-	}
-
-	if (direction === 'right') {
-		const x = openProgress * -DRAWER_NESTED_DISPLACEMENT
-		return `scale(${scale}) translate3d(${x}px, 0, 0)`
-	}
-
-	if (direction === 'top') {
-		const y = openProgress * DRAWER_NESTED_DISPLACEMENT
-		return `scale(${scale}) translate3d(0, ${y}px, 0)`
-	}
-
-	const y = openProgress * -DRAWER_NESTED_DISPLACEMENT
-	return `scale(${scale}) translate3d(0, ${y}px, 0)`
 }

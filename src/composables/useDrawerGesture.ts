@@ -13,7 +13,7 @@ import { logDrawerDebug } from '../utils/drawerDebug'
 import { DRAWER_RECENT_OPEN_WINDOW_MS, restoreBodyPointerEvents, waitForDrawerTransition } from '../utils/drawerDom'
 import { getPointerPagePosition, resolvePointerDragIntent } from '../utils/drawerPointer'
 import { getOverlayOpacityForOffset, resolveSnapPointTarget } from '../utils/drawerSnapPoints'
-import type { DrawerDirection, DrawerRootContext } from '../utils/drawerTypes'
+import type { DrawerDirection } from '../utils/drawerTypes'
 
 interface UseDrawerGestureOptions {
 	debugId: string
@@ -45,7 +45,6 @@ interface UseDrawerGestureOptions {
 	getRestingOffset: () => number
 	getRestingOverlayOpacity: () => number
 	animateToSnapPoint: (index: number) => void
-	parentContext: DrawerRootContext | null
 	resetInteractiveState: () => void
 }
 
@@ -80,7 +79,6 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 		getRestingOffset,
 		getRestingOverlayOpacity,
 		animateToSnapPoint,
-		parentContext,
 		resetInteractiveState,
 	} = options
 
@@ -354,7 +352,6 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 				: `${1 - closeProgress}`
 		}
 
-		parentContext?.onNestedDrag(closeProgress)
 	}
 
 	function clearInlineStyles(options: {
@@ -442,7 +439,6 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 			clearInlineStyles()
 			resetInteractiveState()
 		})
-		parentContext?.onNestedRelease(true)
 	}
 
 	function animateCloseFromGesture() {
@@ -476,8 +472,6 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 			overlay.style.transition = getOverlayTransition()
 			overlay.style.opacity = '0'
 		}
-
-		parentContext?.onNestedRelease(false)
 
 		waitForDrawerTransition(content, 'transform', () => {
 			if (transitionVersion !== closeTransitionVersion) {

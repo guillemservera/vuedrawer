@@ -289,10 +289,11 @@ describe('Drawer accessibility primitives', () => {
 		outside.remove()
 	})
 
-	it('does not block outside pointer defaults for non-modal drawers', async () => {
+	it('does not dismiss or block outside pointer defaults for non-modal drawers', async () => {
 		const outside = document.createElement('button')
 		outside.type = 'button'
 		document.body.appendChild(outside)
+		const pointerDownOutside = vi.fn()
 
 		const Harness = defineComponent({
 			components: {
@@ -301,11 +302,14 @@ describe('Drawer accessibility primitives', () => {
 			},
 			setup() {
 				const open = ref(true)
-				return { open }
+				return {
+					open,
+					pointerDownOutside,
+				}
 			},
 			template: `
 				<DrawerRoot v-model:open="open" :modal="false">
-					<DrawerContent />
+					<DrawerContent @pointer-down-outside="pointerDownOutside" />
 				</DrawerRoot>
 			`,
 		})
@@ -324,8 +328,55 @@ describe('Drawer accessibility primitives', () => {
 		outside.dispatchEvent(pointerEvent)
 		await nextTick()
 
+		expect(pointerDownOutside).toHaveBeenCalledTimes(1)
 		expect(pointerEvent.defaultPrevented).toBe(false)
-		expect((wrapper.vm as unknown as { open: boolean }).open).toBe(false)
+		expect((wrapper.vm as unknown as { open: boolean }).open).toBe(true)
+
+		wrapper.unmount()
+		outside.remove()
+	})
+
+	it('does not dismiss from outside focus for non-modal drawers', async () => {
+		const outside = document.createElement('button')
+		outside.type = 'button'
+		document.body.appendChild(outside)
+
+		const focusOutside = vi.fn()
+
+		const Harness = defineComponent({
+			components: {
+				DrawerContent,
+				DrawerRoot,
+			},
+			setup() {
+				const open = ref(true)
+				return {
+					focusOutside,
+					open,
+				}
+			},
+			template: `
+				<DrawerRoot v-model:open="open" :modal="false">
+					<DrawerContent @focus-outside="focusOutside" />
+				</DrawerRoot>
+			`,
+		})
+
+		const wrapper = mount(Harness, {
+			attachTo: document.body,
+			global: {
+				stubs: {
+					Transition: false,
+				},
+			},
+		})
+
+		await nextTick()
+		outside.dispatchEvent(new FocusEvent('focusin', { bubbles: true, cancelable: true }))
+		await nextTick()
+
+		expect(focusOutside).toHaveBeenCalledTimes(1)
+		expect((wrapper.vm as unknown as { open: boolean }).open).toBe(true)
 
 		wrapper.unmount()
 		outside.remove()

@@ -16,7 +16,7 @@ import { contentClass, handleClass, overlayClass } from './demoClasses'
 const props = defineProps<{ styled: boolean }>()
 const open = ref(false)
 const nestedOpen = ref(false)
-const content = computed(() => contentClass(props.styled, 'bottom'))
+const content = computed(() => `${contentClass(props.styled, 'bottom')} demo-content--nested-parent`)
 const nestedContent = computed(() => `${contentClass(props.styled, 'bottom')} demo-content--nested`)
 const overlay = computed(() => overlayClass(props.styled))
 const nestedOverlay = computed(() => `${overlayClass(props.styled)} demo-overlay--nested`)
@@ -41,7 +41,7 @@ const handle = computed(() => handleClass(props.styled))
 					<DrawerHandle :class="handle" />
 					<DrawerTitle class="demo-title">Parent drawer</DrawerTitle>
 					<DrawerDescription class="demo-description">
-						The parent scales while the nested drawer is active, matching the extracted TickersData behavior.
+						The parent remains stable while the nested drawer stacks above it.
 					</DrawerDescription>
 
 					<DrawerRootNested v-model:open="nestedOpen">

@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-	DRAWER_NESTED_DISPLACEMENT,
 	getCloseDirectionSign,
 	getClosedTransform,
-	getNestedTransform,
 	getTranslateStyles,
 	isVerticalDrawer,
 } from '../src/utils/drawerConstants'
@@ -35,15 +33,5 @@ describe('drawerConstants', () => {
 		expect(getClosedTransform('top')).toContain('-100%')
 		expect(getClosedTransform('left')).toContain('-100%')
 		expect(getClosedTransform('right')).toContain('100%')
-	})
-
-	it('keeps nested transform neutral when fully closed', () => {
-		expect(getNestedTransform('bottom', 1)).toBe('scale(1) translate3d(0, 0px, 0)')
-		expect(getNestedTransform('left', 1)).toBe('scale(1) translate3d(0px, 0, 0)')
-	})
-
-	it('applies the expected nested displacement when fully open', () => {
-		expect(getNestedTransform('bottom', 0)).toContain(`${DRAWER_NESTED_DISPLACEMENT * -1}px`)
-		expect(getNestedTransform('left', 0)).toContain(`${DRAWER_NESTED_DISPLACEMENT}px`)
 	})
 })

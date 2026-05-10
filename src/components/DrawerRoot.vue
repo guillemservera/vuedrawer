@@ -5,7 +5,6 @@ import {
 	DRAWER_DEFAULT_SCROLL_LOCK_TIMEOUT,
 	DRAWER_DEFAULT_TRANSITION_DURATION_MS,
 	DRAWER_EASE,
-	getNestedTransform,
 	getTranslateStyles,
 } from '../utils/drawerConstants'
 import { provideDrawerRootContext, useOptionalDrawerRootContext } from '../utils/drawerContext'
@@ -59,8 +58,6 @@ const shouldAnimateInitialOpen = ref(!props.defaultOpen)
 const skipCloseAnimation = ref(false)
 const closeAnimationOverride = ref<DrawerAnimation | null>(null)
 const preventCloseAutoFocusOnce = ref(false)
-const nestedChildOpen = ref(false)
-const nestedRestoreActive = ref(false)
 const debugId = createDrawerDebugId(props.direction, props.nested)
 const domIdBase = `vuedrawer-${debugId.replace(/[^a-zA-Z0-9_-]+/g, '-').toLowerCase()}`
 const defaultContentId = `${domIdBase}-content`
@@ -69,9 +66,7 @@ const defaultDescriptionId = `${domIdBase}-description`
 const contentId = ref(defaultContentId)
 const titleId = ref<string | undefined>()
 const descriptionId = ref<string | undefined>()
-let nestedTransitionVersion = 0
 let skipNextActiveSnapPointAnimation = false
-let nestedTransitionCleanup: (() => void) | null = null
 
 interface SyncRestingStyleOptions {
 	overlayOpacity?: number
@@ -339,11 +334,6 @@ function registerContentElement(element: HTMLElement | null) {
 	}
 
 	syncRestingStyles()
-
-	if (!nestedChildOpen.value) return
-
-	element.style.transition = getContentTransition()
-	element.style.transform = getNestedCompositeTransform(0)
 }
 
 function registerOverlayElement(element: HTMLElement | null) {
@@ -379,43 +369,8 @@ function getOverlayTransition(options: { instant?: boolean } = {}) {
 	return `opacity ${getTransitionDuration(options)}ms ${getTransitionEase()}`
 }
 
-function getNestedCompositeTransform(closeProgress: number) {
-	const nestedTransform = getNestedTransform(props.direction, closeProgress)
-	const restingOffset = getRestingOffset()
-
-	if (restingOffset <= 0) {
-		return nestedTransform
-	}
-
-	return `${getTranslateStyles(props.direction, restingOffset)} ${nestedTransform}`
-}
-
 function getRestingTransform() {
 	return getTranslateStyles(props.direction, getRestingOffset())
-}
-
-function cancelNestedTransitionWait() {
-	nestedTransitionCleanup?.()
-	nestedTransitionCleanup = null
-}
-
-function startNestedTransition(content: HTMLElement, targetTransform: string, options: { instant?: boolean } = {}) {
-	cancelNestedTransitionWait()
-
-	const computedTransform = window.getComputedStyle(content).transform
-	const currentTransform = computedTransform && computedTransform !== 'none'
-		? computedTransform
-		: getRestingTransform()
-
-	// Rapid nested open/close cycles can write several transform targets in the
-	// same frame. Commit the current visual transform first so Safari starts the
-	// next parent animation instead of collapsing it into a style jump.
-	content.style.transition = 'none'
-	content.style.transform = currentTransform
-	content.getBoundingClientRect()
-
-	content.style.transition = getContentTransition(options)
-	content.style.transform = targetTransform
 }
 
 function animateToSnapPoint(index: number, options: { updateActiveSnapPoint?: boolean } = {}) {
@@ -477,8 +432,6 @@ function resetInteractiveState() {
 	const content = contentElement.value
 	const overlay = overlayElement.value
 
-	cancelNestedTransitionWait()
-
 	if (content) {
 		content.style.transition = ''
 		content.style.transform = ''
@@ -491,16 +444,10 @@ function resetInteractiveState() {
 
 	isDragging.value = false
 	gestureClosing.value = false
-	nestedRestoreActive.value = false
 	syncRestingStyles()
 
 	if (open.value) {
 		scheduleBodyPointerEventsRestore()
-	}
-
-	if (nestedChildOpen.value && content) {
-		content.style.transition = getContentTransition()
-		content.style.transform = getNestedCompositeTransform(0)
 	}
 }
 
@@ -520,81 +467,18 @@ function setSkipCloseAnimation(value: boolean) {
 	skipCloseAnimation.value = value
 }
 
-function prepareNestedChildOpen() {
-	nestedTransitionVersion += 1
-}
+function forceInstantCloseFromParent() {
+	setSkipCloseAnimation(true)
+	setGestureClosing(false)
 
-function setNestedChildOpen(value: boolean, options: { instant?: boolean } = {}) {
-	const transitionVersion = ++nestedTransitionVersion
-	if (nestedChildOpen.value === value) return
-	nestedChildOpen.value = value
-	const content = contentElement.value
-	if (!content) return
-
-	if (!value && !open.value) {
-		nestedRestoreActive.value = false
-		cancelNestedTransitionWait()
-		content.style.transition = ''
-		content.style.transform = ''
-		return
+	if (contentElement.value) {
+		contentElement.value.style.transition = getContentTransition({ instant: true })
+	}
+	if (overlayElement.value) {
+		overlayElement.value.style.transition = getOverlayTransition({ instant: true })
 	}
 
-	nestedRestoreActive.value = !value
-	startNestedTransition(content, value
-		? getNestedCompositeTransform(0)
-		: getRestingTransform(), { instant: !value ? options.instant : false })
-
-	const cleanup = waitForDrawerTransition(content, 'transform', () => {
-		if (nestedTransitionCleanup === cleanup) {
-			nestedTransitionCleanup = null
-		}
-		if (transitionVersion !== nestedTransitionVersion) return
-		nestedRestoreActive.value = false
-		if (!value) {
-			resetInteractiveState()
-		}
-	})
-	nestedTransitionCleanup = cleanup
-}
-
-function onNestedDrag(closeProgress: number) {
-	const content = contentElement.value
-	if (!content) return
-
-	cancelNestedTransitionWait()
-	content.style.transition = 'none'
-	content.style.transform = getNestedCompositeTransform(closeProgress)
-}
-
-function onNestedRelease(isStillOpen: boolean) {
-	const transitionVersion = ++nestedTransitionVersion
-	const content = contentElement.value
-	if (!content) return
-
-	// When a nested drawer is closing via gesture, we handle the parent's transform
-	// restoration here. Update nestedChildOpen immediately so that the nested drawer's
-	// later handleAfterClose() -> setNestedChildOpen(false) becomes a no-op, preventing
-	// a redundant transform animation that causes a visible "get big -> shrink" bounce.
-	if (!isStillOpen) {
-		nestedChildOpen.value = false
-		nestedRestoreActive.value = true
-	}
-
-	startNestedTransition(content, isStillOpen
-		? getNestedCompositeTransform(0)
-		: getRestingTransform())
-
-	const cleanup = waitForDrawerTransition(content, 'transform', () => {
-		if (nestedTransitionCleanup === cleanup) {
-			nestedTransitionCleanup = null
-		}
-		if (transitionVersion !== nestedTransitionVersion) return
-		nestedRestoreActive.value = false
-		if (!isStillOpen) {
-			resetInteractiveState()
-		}
-	})
-	nestedTransitionCleanup = cleanup
+	requestOpenChange(false)
 }
 
 function handleAfterOpen() {
@@ -618,9 +502,6 @@ function handleAfterClose() {
 	gestureClosing.value = false
 	if (preventCloseAutoFocusOnce.value) {
 		preventCloseAutoFocusOnce.value = false
-	}
-	if (props.nested) {
-		parentContext?.setNestedChildOpen(false)
 	}
 	scrollLockOpen.value = false
 	emit('after-close')
@@ -690,10 +571,6 @@ provideDrawerRootContext({
 	handleContentError,
 	setGestureClosing,
 	setSkipCloseAnimation,
-	prepareNestedChildOpen,
-	setNestedChildOpen,
-	onNestedDrag,
-	onNestedRelease,
 	resetInteractiveState,
 	getContentTransition,
 	getOverlayTransition,
@@ -787,16 +664,18 @@ watch(activeSnapPoint, (value, previousValue) => {
 watch(
 	() => parentContext?.open.value,
 	(isParentOpen) => {
-		if (!props.nested || isParentOpen !== false || !open.value) return
+		if (
+			!props.nested
+			|| isParentOpen !== false
+			|| (!open.value && !contentElement.value && !gestureClosing.value)
+		) return
 
 		logDrawerDebug(debugId, 'parent-close:force-child-close', {
 			parentOpen: isParentOpen,
 			childOpen: open.value,
 		})
 
-		setSkipCloseAnimation(true)
-		setGestureClosing(false)
-		requestOpenChange(false)
+		forceInstantCloseFromParent()
 	},
 )
 
@@ -855,11 +734,6 @@ onMounted(() => {
 })
 
 watch(open, (isOpen) => {
-	if (isOpen && props.nested) {
-		parentContext?.prepareNestedChildOpen()
-		parentContext?.setNestedChildOpen(true)
-	}
-
 	if (isOpen) {
 		if (hasSnapPoints.value && props.activeSnapPoint === undefined && uncontrolledActiveSnapPoint.value === null) {
 			uncontrolledActiveSnapPoint.value = resolveInitialSnapPoint()
@@ -876,30 +750,7 @@ watch(open, (isOpen) => {
 		return
 	}
 
-	if ((nestedChildOpen.value || nestedRestoreActive.value) && contentElement.value) {
-		nestedTransitionVersion += 1
-		cancelNestedTransitionWait()
-		nestedChildOpen.value = false
-		nestedRestoreActive.value = false
-		contentElement.value.style.transition = ''
-		contentElement.value.style.transform = ''
-	}
-
 	maybeEnableSkipCloseAnimation('watch-close')
-
-	// Non-gesture nested close (overlay tap, escape, programmatic):
-	// Notify the parent immediately so its restore animation runs in parallel
-	// with this drawer's leave transition, instead of waiting for handleAfterClose.
-	// The gesture path already handles this via onNestedRelease.
-	//
-	// IMPORTANT: Do NOT set skipCloseAnimation here. The overlay must stay mounted
-	// for the full leave transition so it absorbs the pointerup event.
-	// With instant close (1ms), the overlay vanishes before the finger lifts,
-	// and the pointerup lands on the parent content, triggering a click on a
-	// field-row button and immediately opening a new nested drawer.
-	if (props.nested && !gestureClosing.value) {
-		parentContext?.setNestedChildOpen(false)
-	}
 
 	openedAt.value = null
 	restoreBodyPointerEvents()
@@ -909,9 +760,6 @@ onBeforeUnmount(() => {
 	if (typeof window !== 'undefined') {
 		window.removeEventListener('resize', handleSnapPointViewportResize)
 		window.visualViewport?.removeEventListener('resize', handleSnapPointViewportResize)
-	}
-	if (props.nested) {
-		parentContext?.setNestedChildOpen(false)
 	}
 	resetInteractiveState()
 })

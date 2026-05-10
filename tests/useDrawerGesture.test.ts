@@ -147,7 +147,6 @@ describe('useDrawerGesture', () => {
 					getRestingOffset: () => 0,
 					getRestingOverlayOpacity: () => 1,
 					animateToSnapPoint: () => undefined,
-					parentContext: null,
 					resetInteractiveState: () => undefined,
 				})
 
@@ -267,7 +266,6 @@ describe('useDrawerGesture', () => {
 					getRestingOffset: () => 0,
 					getRestingOverlayOpacity: () => 1,
 					animateToSnapPoint: () => undefined,
-					parentContext: null,
 					resetInteractiveState: () => undefined,
 				})
 
@@ -383,7 +381,6 @@ describe('useDrawerGesture', () => {
 					getRestingOffset: () => 0,
 					getRestingOverlayOpacity: () => 1,
 					animateToSnapPoint: () => undefined,
-					parentContext: null,
 					resetInteractiveState,
 				})
 
@@ -520,7 +517,6 @@ describe('useDrawerGesture', () => {
 					getRestingOffset: () => 0,
 					getRestingOverlayOpacity: () => 1,
 					animateToSnapPoint: () => undefined,
-					parentContext: null,
 					resetInteractiveState: () => undefined,
 				})
 
@@ -627,7 +623,6 @@ describe('useDrawerGesture', () => {
 					getRestingOffset: () => 0,
 					getRestingOverlayOpacity: () => 1,
 					animateToSnapPoint: () => undefined,
-					parentContext: null,
 					resetInteractiveState: () => undefined,
 				})
 

@@ -66,7 +66,7 @@ VueDrawer ships only the functional CSS required for transforms, transitions, to
 - Behaviorally opinionated drawer lifecycle.
 - Pointer gestures and swipe to close.
 - Snap points with controlled active snap point.
-- Nested drawers with parent transform coordination.
+- Nested drawers with clean stacking and top-layer dismissal.
 - Mobile-friendly scroll locking and iOS overscroll guards.
 - Reka/Radix-inspired dismiss layer without runtime dependencies.
 - Escape handling that closes only the top active drawer.
@@ -142,9 +142,9 @@ Use `DrawerRootNested` instead of setting `nested` manually for nested drawers.
 | `disabled` | `boolean` | `false` |
 | `scope` | `'current' \| 'all'` | `'current'` |
 
-`modal` controls whether outside content is interactive. Modal drawers trap focus, hide outside content from assistive tech, lock page scroll and disable outside pointer interaction. Non-modal drawers leave the page interactive and do not render an interactive overlay by default.
+`modal` controls whether outside content is interactive. Modal drawers trap focus, hide outside content from assistive tech, lock page scroll and disable outside pointer interaction. Non-modal drawers leave the page interactive, emit outside interaction events, and stay open while users work with the underlying page.
 
-`dismissible=false` prevents Escape, outside pointer, close-direction drag and overlay dismissal from closing the drawer. Use it with controlled state so your app still has an explicit way to close.
+`dismissible=false` prevents Escape, modal outside pointer, close-direction drag and overlay dismissal from closing the drawer. Use it with controlled state so your app still has an explicit way to close.
 
 `animation` controls the open animation and `closeAnimation` controls normal non-gesture closes. For example, `animation="fade" closeAnimation="slide"` gives a fade-in and the classic slide-out close. Drag gestures still follow the pointer and close with transform. The fade defaults are intentionally quick (`260ms` in, `180ms` out) with no movement, and can be tuned with CSS variables such as `--drawer-fade-enter-duration`, `--drawer-fade-leave-duration`, `--drawer-fade-ease`, and `--drawer-fade-enter-offset`.
 
@@ -244,6 +244,8 @@ Provide a visible `DrawerTitle` whenever possible. If your UI needs a visually h
 ## Dismissal And Overlay
 
 `DrawerOverlay` is a styling hook, not a required dialog dependency. The actual outside click/focus handling lives in the internal dismiss layer, which tracks the top active drawer. This keeps nested drawers predictable and lets consumers customize the overlay freely.
+
+For `modal=false`, outside pointer and focus events are still emitted but do not close the drawer by default.
 
 ```vue
 <DrawerRoot v-model:open="open">

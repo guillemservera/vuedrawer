@@ -155,61 +155,7 @@ describe('DrawerRootNested', () => {
 		expect((wrapper.vm as unknown as { childOpen: boolean }).childOpen).toBe(false)
 	})
 
-	it('keeps the parent restore animation at the normal duration after an instant nested dismiss', async () => {
-		const requestAnimationFrameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
-			callback(0)
-			return 1
-		})
-		const wrapper = mount(NestedInstantHarness, {
-			attachTo: document.body,
-			global: {
-				stubs: {
-					Transition: false,
-				},
-			},
-		})
-
-		await nextTick()
-
-		const probes = wrapper.findAllComponents(ContextProbe)
-		const parentProbe = probes[0]!.vm.$.exposed as {
-			root: ReturnType<typeof useDrawerRootContext>
-		}
-
-		;(wrapper.vm as unknown as { childOpen: boolean }).childOpen = false
-		await nextTick()
-
-		expect(parentProbe.root.contentElement.value?.style.transition).toContain('420ms')
-
-		wrapper.unmount()
-		requestAnimationFrameSpy.mockRestore()
-	})
-
-	it('starts the parent nested transform in the same tick as the child opens', async () => {
-		const wrapper = mount(NestedInstantHarness, {
-			attachTo: document.body,
-			global: {
-				stubs: {
-					Transition: false,
-				},
-			},
-		})
-
-		await nextTick()
-
-		const probes = wrapper.findAllComponents(ContextProbe)
-		const parentProbe = probes[0]!.vm.$.exposed as {
-			root: ReturnType<typeof useDrawerRootContext>
-		}
-
-		const transform = parentProbe.root.contentElement.value?.style.transform ?? ''
-		expect(transform).toContain('scale')
-		expect(transform).toContain('translate3d')
-
-		wrapper.unmount()
-	})
-
-	it('keeps the parent nested animation when the child is reopened during restore', async () => {
+	it('does not transform the parent drawer while a nested child is open', async () => {
 		const wrapper = mount(NestedInstantHarness, {
 			attachTo: document.body,
 			global: {
@@ -227,24 +173,48 @@ describe('DrawerRootNested', () => {
 		}
 		const content = parentProbe.root.contentElement.value!
 
+		expect(content.style.transform).toBe('')
+
 		;(wrapper.vm as unknown as { childOpen: boolean }).childOpen = false
 		await nextTick()
-		expect(content.style.transition).toContain('420ms')
 
-		;(wrapper.vm as unknown as { childOpen: boolean }).childOpen = true
+		expect(content.style.transform).toBe('')
+
+		wrapper.unmount()
+	})
+
+	it('forces an already-closing nested drawer to finish instantly when the parent closes', async () => {
+		const wrapper = mount(NestedInstantHarness, {
+			attachTo: document.body,
+			global: {
+				stubs: {
+					Transition: false,
+				},
+			},
+		})
+
 		await nextTick()
 
-		expect(content.style.transition).toContain('420ms')
-		expect(content.style.transform).toContain('scale')
-		expect(content.style.transform).toContain('translate3d')
+		const probes = wrapper.findAllComponents(ContextProbe)
+		const childProbe = probes[1]!.vm.$.exposed as {
+			root: ReturnType<typeof useDrawerRootContext>
+		}
 
-		content.dispatchEvent(new TransitionEvent('transitionend', {
-			bubbles: true,
-			propertyName: 'transform',
-		}))
+		;(wrapper.vm as unknown as { childOpen: boolean }).childOpen = false
+		await nextTick()
+		expect(childProbe.root.open.value).toBe(false)
 
-		expect(content.style.transform).toContain('scale')
-		expect(content.style.transform).toContain('translate3d')
+		const childContent = document.createElement('div')
+		const childOverlay = document.createElement('div')
+		childProbe.root.registerContentElement(childContent)
+		childProbe.root.registerOverlayElement(childOverlay)
+
+		;(wrapper.vm as unknown as { open: boolean }).open = false
+		await nextTick()
+
+		expect(childProbe.root.skipCloseAnimation.value).toBe(true)
+		expect(childContent.style.transition).toContain('1ms')
+		expect(childOverlay.style.transition).toContain('1ms')
 
 		wrapper.unmount()
 	})

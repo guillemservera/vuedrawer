@@ -250,36 +250,6 @@ describe('DrawerRoot', () => {
 		vi.useRealTimers()
 	})
 
-		it('keeps dismiss attempts enabled while restoring the parent after a nested gesture close', async () => {
-			const wrapper = mount(Harness, {
-				attachTo: document.body,
-				global: {
-					stubs: {
-						Transition: false,
-					},
-				},
-			})
-
-			await nextTick()
-
-		const probe = wrapper.getComponent(ContextProbe).vm.$.exposed as {
-			root: ReturnType<typeof useDrawerRootContext>
-		}
-		probe.root.onNestedRelease(false)
-
-		const immediateDismiss = new Event('pointerdown', { cancelable: true })
-		probe.root.handleDismissAttempt(immediateDismiss)
-		expect(immediateDismiss.defaultPrevented).toBe(false)
-
-		vi.advanceTimersByTime(700)
-
-		const laterDismiss = new Event('pointerdown', { cancelable: true })
-		probe.root.handleDismissAttempt(laterDismiss)
-		expect(laterDismiss.defaultPrevented).toBe(false)
-
-		wrapper.unmount()
-	})
-
 	it('detects instant close timing when the drawer is closed externally', async () => {
 		const wrapper = mount(InstantCloseHarness, {
 			attachTo: document.body,
@@ -375,61 +345,6 @@ describe('DrawerRoot', () => {
 
 		expect(probe.root.animation.value).toBe('fade')
 		expect(wrapper.get('[data-drawer-content]').attributes('data-animation')).toBe('fade')
-
-		wrapper.unmount()
-	})
-
-	it('cancels an in-flight nested restore before starting its own close', async () => {
-		const wrapper = mount(Harness, {
-			attachTo: document.body,
-			global: {
-				stubs: {
-					Transition: false,
-				},
-			},
-		})
-
-		await nextTick()
-
-		const probe = wrapper.getComponent(ContextProbe).vm.$.exposed as {
-			root: ReturnType<typeof useDrawerRootContext>
-		}
-
-		probe.root.setNestedChildOpen(true)
-		probe.root.setNestedChildOpen(false)
-		expect(probe.root.contentElement.value?.style.transition).toContain('420ms')
-
-		;(wrapper.vm as unknown as { open: boolean }).open = false
-		await nextTick()
-
-		expect(probe.root.contentElement.value?.style.transition ?? '').toBe('')
-
-		wrapper.unmount()
-	})
-
-	it('clears the active nested-open transform before starting its own close', async () => {
-		const wrapper = mount(Harness, {
-			attachTo: document.body,
-			global: {
-				stubs: {
-					Transition: false,
-				},
-			},
-		})
-
-		await nextTick()
-
-		const probe = wrapper.getComponent(ContextProbe).vm.$.exposed as {
-			root: ReturnType<typeof useDrawerRootContext>
-		}
-
-		probe.root.setNestedChildOpen(true)
-		expect(probe.root.contentElement.value?.style.transform ?? '').not.toBe('')
-
-		;(wrapper.vm as unknown as { open: boolean }).open = false
-		await nextTick()
-
-		expect(probe.root.contentElement.value?.style.transform ?? '').toBe('')
 
 		wrapper.unmount()
 	})

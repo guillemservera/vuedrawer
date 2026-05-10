@@ -107,7 +107,6 @@ const {
 	getRestingOffset: root.getRestingOffset,
 	getRestingOverlayOpacity: root.getRestingOverlayOpacity,
 	animateToSnapPoint: root.animateToSnapPoint,
-	parentContext: root.parentContext,
 	resetInteractiveState: root.resetInteractiveState,
 })
 const contentRef = ref<HTMLElement | null>(null)
@@ -145,6 +144,8 @@ useDrawerDismissableLayer({
 			return
 		}
 
+		if (!root.modal.value) return
+
 		root.handleDismissAttempt(event)
 		if (event.defaultPrevented) return
 
@@ -161,11 +162,7 @@ useDrawerDismissableLayer({
 			return
 		}
 
-		root.handleDismissAttempt(event)
-		if (event.defaultPrevented) return
-
-		root.preventCloseAutoFocusOnce.value = true
-		root.requestOpenChange(false)
+		return
 	},
 })
 
