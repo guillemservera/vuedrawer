@@ -95,7 +95,7 @@ import {
 } from 'vuedrawer'
 ```
 
-`DrawerRoot` owns state and behavior. `DrawerPortal` teleports overlay/content to `body` by default. `DrawerOverlay` is optional and visual; outside dismissal is handled by the internal dismiss layer so consumers can style, omit or replace the overlay. `DrawerContent` is the dialog surface. `DrawerHandle` owns handle-only gestures when `handleOnly` is enabled. `DrawerTitle` and `DrawerDescription` register accessible IDs for `DrawerContent`.
+`DrawerRoot` owns state and behavior. `DrawerPortal` teleports overlay/content to `body` by default. `DrawerOverlay` is optional and visual; outside dismissal is handled by the internal dismiss layer so consumers can style, omit or replace the overlay. `DrawerContent` is the dialog surface. `DrawerHandle` cycles snap points on click and owns handle-only gestures when `handleOnly` is enabled. `DrawerClose` closes the current root by default and can close the full nested stack with `scope="all"`. `DrawerTitle` and `DrawerDescription` register accessible IDs for `DrawerContent`.
 
 ### Root Props
 
@@ -128,19 +128,35 @@ import {
 
 Use `DrawerRootNested` instead of setting `nested` manually for nested drawers.
 
+### Handle Props
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `preventCycle` | `boolean` | `false` |
+
+### Close Props
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `animation` | `'slide' \| 'fade'` | `undefined` |
+| `disabled` | `boolean` | `false` |
+| `scope` | `'current' \| 'all'` | `'current'` |
+
 `modal` controls whether outside content is interactive. Modal drawers trap focus, hide outside content from assistive tech, lock page scroll and disable outside pointer interaction. Non-modal drawers leave the page interactive and do not render an interactive overlay by default.
 
 `dismissible=false` prevents Escape, outside pointer, close-direction drag and overlay dismissal from closing the drawer. Use it with controlled state so your app still has an explicit way to close.
 
 `animation` controls the open animation and `closeAnimation` controls normal non-gesture closes. For example, `animation="fade" closeAnimation="slide"` gives a fade-in and the classic slide-out close. Drag gestures still follow the pointer and close with transform. The fade defaults are intentionally quick (`260ms` in, `180ms` out) with no movement, and can be tuned with CSS variables such as `--drawer-fade-enter-duration`, `--drawer-fade-leave-duration`, `--drawer-fade-ease`, and `--drawer-fade-enter-offset`.
 
-`DrawerTitle` and `DrawerDescription` automatically register generated IDs with `DrawerContent`, which sets `aria-labelledby` and `aria-describedby` unless you provide those attributes yourself. `DrawerTrigger` renders an accessible button with `aria-haspopup="dialog"`, `aria-expanded`, and `aria-controls`. `DrawerClose` renders a button that closes the active root.
+`DrawerTitle` and `DrawerDescription` automatically register generated IDs with `DrawerContent`, which sets `aria-labelledby` and `aria-describedby` unless you provide those attributes yourself. `DrawerTrigger` renders an accessible button with `aria-haspopup="dialog"`, `aria-expanded`, and `aria-controls`. `DrawerClose` renders a button that closes the active root. Inside nested drawers, set `scope="all"` to close the top-level root and let the nested stack clean itself up.
 
 `preventScroll` controls the document/body scroll-lock layer. Keep it enabled unless your app already owns scroll locking. `noBodyStyles` keeps iOS touch and overscroll guards active, but skips writing positioning styles to `document.body`.
 
 `repositionInputs` keeps focused inputs inside a bottom drawer visible when Mobile Safari changes the visual viewport for the keyboard. `fixed` changes that keyboard behavior by shrinking the drawer height instead of preserving the full drawer height above the keyboard.
 
 `snapPoints` accepts percentages (`0.55`) or pixel/rem strings (`'280px'`, `'18rem'`). Percentage values are resolved against the viewport axis, or against the custom `container` axis when one is provided, matching Vaul's snap point semantics. Values should go from least visible to most visible, for example `['160px', 0.55, 0.92]`. `activeSnapPoint` can be controlled with `v-model:active-snap-point`. `fadeFromIndex` controls when the overlay starts fading in across snap points.
+
+Clicking `DrawerHandle` advances to the next snap point. When the active snap point is the last one, the handle closes a dismissible drawer. Set `preventCycle` on `DrawerHandle` to disable click cycling while keeping the drag affordance.
 
 `snapToSequentialPoint=false` matches Vaul's fast-swipe behavior: a strong close-direction swipe can skip intermediate snap points and close. Set `snapToSequentialPoint=true` when every release should move at most one snap point.
 
@@ -192,6 +208,7 @@ These events are emitted by `DrawerContent`. Outside interaction and autofocus e
 import type {
   DrawerDirection,
   DrawerAnimation,
+  DrawerCloseScope,
   DrawerFocusOutsideEvent,
   DrawerInteractOutsideEvent,
   DrawerPointerDownOutsideEvent,

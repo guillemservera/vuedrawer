@@ -2,6 +2,7 @@ import type { HTMLAttributes, Ref } from 'vue'
 
 export type DrawerDirection = 'top' | 'bottom' | 'left' | 'right'
 export type DrawerAnimation = 'slide' | 'fade'
+export type DrawerCloseScope = 'current' | 'all'
 export type DrawerSnapPoint = number | string
 export type DrawerPortalTarget = string | HTMLElement
 export type DrawerPointerDownOutsideEvent = CustomEvent<{ originalEvent: PointerEvent }>
@@ -106,6 +107,7 @@ export interface DrawerRootContext {
 	isDragging: Ref<boolean>
 	gestureClosing: Ref<boolean>
 	skipCloseAnimation: Ref<boolean>
+	shouldAnimateInitialOpen: Ref<boolean>
 	preventCloseAutoFocusOnce: Ref<boolean>
 	parentContext: DrawerRootContext | null
 	requestOpenChange: (value: boolean, options?: { animation?: DrawerAnimation }) => void
@@ -144,6 +146,7 @@ export interface DrawerRootContext {
 
 export interface DrawerHandleProps {
 	class?: HTMLAttributes['class']
+	preventCycle?: boolean
 }
 
 export interface DrawerTriggerProps {
@@ -153,6 +156,7 @@ export interface DrawerTriggerProps {
 export interface DrawerCloseProps {
 	animation?: DrawerAnimation
 	disabled?: boolean
+	scope?: DrawerCloseScope
 }
 
 export interface DrawerPortalProps {

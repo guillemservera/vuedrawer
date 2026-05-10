@@ -120,7 +120,7 @@ const rootProps = computed<DrawerRootProps>(() => {
 	return config
 })
 const content = computed(() => contentClass(props.styled, direction.value))
-const nestedContent = computed(() => contentClass(props.styled, direction.value))
+const nestedContent = computed(() => `${contentClass(props.styled, direction.value)} demo-content--nested`)
 const shouldRenderOverlay = computed(() => renderOverlay.value && modal.value)
 const usesFadeAnimation = computed(() => animation.value === 'fade' || closeAnimation.value === 'fade')
 const contentStyle = computed(() => {
@@ -132,6 +132,7 @@ const contentStyle = computed(() => {
 	})
 })
 const overlay = computed(() => overlayClass(props.styled))
+const nestedOverlay = computed(() => `${overlayClass(props.styled)} demo-overlay--nested`)
 const handle = computed(() => handleClass(props.styled))
 const openModeLabel = computed(() => controlledOpen.value ? 'controlled' : 'defaultOpen')
 const activeSnapPointLabel = computed(() => formatSnapPoint(observedActiveSnapPoint.value))
@@ -569,7 +570,7 @@ function formatSnapPoint(snapPoint: DrawerSnapPoint | null) {
 								</button>
 
 								<DrawerPortal>
-									<DrawerOverlay v-if="shouldRenderOverlay" :class="overlay" />
+									<DrawerOverlay v-if="shouldRenderOverlay" :class="nestedOverlay" />
 									<DrawerContent :class="nestedContent" :style="contentStyle">
 										<DrawerHandle v-if="renderHandle" :class="handle" />
 										<DrawerTitle class="demo-title">Nested configured drawer</DrawerTitle>

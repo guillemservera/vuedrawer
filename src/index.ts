@@ -14,6 +14,7 @@ import DrawerTrigger from './components/DrawerTrigger.vue'
 export type {
 	DrawerAnimation,
 	DrawerCloseProps,
+	DrawerCloseScope,
 	DrawerDirection,
 	DrawerFocusOutsideEvent,
 	DrawerInteractOutsideEvent,

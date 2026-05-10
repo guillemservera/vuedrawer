@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import {
+	DrawerClose,
 	DrawerContent,
 	DrawerDescription,
 	DrawerHandle,
@@ -16,8 +17,9 @@ const props = defineProps<{ styled: boolean }>()
 const open = ref(false)
 const nestedOpen = ref(false)
 const content = computed(() => contentClass(props.styled, 'bottom'))
-const nestedContent = computed(() => contentClass(props.styled, 'bottom'))
+const nestedContent = computed(() => `${contentClass(props.styled, 'bottom')} demo-content--nested`)
 const overlay = computed(() => overlayClass(props.styled))
+const nestedOverlay = computed(() => `${overlayClass(props.styled)} demo-overlay--nested`)
 const handle = computed(() => handleClass(props.styled))
 </script>
 
@@ -48,16 +50,19 @@ const handle = computed(() => handleClass(props.styled))
 						</button>
 
 						<DrawerPortal>
-							<DrawerOverlay :class="overlay" />
+							<DrawerOverlay :class="nestedOverlay" />
 							<DrawerContent :class="nestedContent">
 								<DrawerHandle :class="handle" />
 								<DrawerTitle class="demo-title">Nested drawer</DrawerTitle>
 								<DrawerDescription class="demo-description">
 									Press Escape once to close this drawer, then again to close the parent.
 								</DrawerDescription>
-								<button class="demo-button demo-button--full" type="button" @click="nestedOpen = false">
+								<DrawerClose class="demo-button demo-button--full">
 									Close nested drawer
-								</button>
+								</DrawerClose>
+								<DrawerClose class="demo-button demo-button--full" scope="all">
+									Close both drawers
+								</DrawerClose>
 							</DrawerContent>
 						</DrawerPortal>
 					</DrawerRootNested>

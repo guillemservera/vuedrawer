@@ -62,7 +62,7 @@ function handleOverlayPointerCancel(event: PointerEvent) {
 
 <template>
 	<Transition
-		appear
+		:appear="root.shouldAnimateInitialOpen.value"
 		enter-active-class="drawer-overlay-enter-active"
 		enter-from-class="drawer-overlay-enter-from"
 		enter-to-class="drawer-overlay-enter-to"

@@ -55,6 +55,7 @@ const overlayElement = ref<HTMLElement | null>(null)
 const isDragging = ref(false)
 const gestureClosing = ref(false)
 const scrollLockOpen = ref(props.open ?? props.defaultOpen)
+const shouldAnimateInitialOpen = ref(!props.defaultOpen)
 const skipCloseAnimation = ref(false)
 const closeAnimationOverride = ref<DrawerAnimation | null>(null)
 const preventCloseAutoFocusOnce = ref(false)
@@ -661,6 +662,7 @@ provideDrawerRootContext({
 	isDragging,
 	gestureClosing,
 	skipCloseAnimation,
+	shouldAnimateInitialOpen,
 	preventCloseAutoFocusOnce,
 	parentContext,
 	requestOpenChange,

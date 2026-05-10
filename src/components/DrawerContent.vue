@@ -299,7 +299,7 @@ function handleTrackedLostPointerCapture(event: PointerEvent) {
 
 <template>
 	<Transition
-		appear
+		:appear="root.shouldAnimateInitialOpen.value"
 		enter-active-class="drawer-content-enter-active"
 		enter-from-class="drawer-content-enter-from"
 		enter-to-class="drawer-content-enter-to"

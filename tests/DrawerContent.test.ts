@@ -70,6 +70,7 @@ const rootContext = vi.hoisted(() => {
 		registerContentElement: vi.fn(),
 		modal: box(true),
 		skipCloseAnimation: box(false),
+		shouldAnimateInitialOpen: box(true),
 		handleAfterOpen: vi.fn(),
 		handleAfterClose: vi.fn(),
 		handleDismissAttempt: vi.fn(),
@@ -96,6 +97,7 @@ describe('DrawerContent', () => {
 		rootContext.closeAnimation.value = 'fade'
 		rootContext.closeAnimationOverride.value = null
 		rootContext.skipCloseAnimation.value = false
+		rootContext.shouldAnimateInitialOpen.value = true
 		rootContext.titleId.value = 'vuedrawer-test-title'
 	})
 
@@ -113,6 +115,15 @@ describe('DrawerContent', () => {
 			},
 		})
 	}
+
+	it('passes the root initial animation flag to the transition appear prop', () => {
+		rootContext.shouldAnimateInitialOpen.value = false
+		const wrapper = mount(DrawerContent)
+
+		expect(wrapper.get('transition-stub').attributes('appear')).toBe('false')
+
+		wrapper.unmount()
+	})
 
 	it('releases the gesture using the last pointer event when pointerout ends the interaction', async () => {
 		const wrapper = mountDrawerContent()

@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { defineComponent, nextTick, ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
+import DrawerClose from '../src/components/DrawerClose.vue'
 import DrawerContent from '../src/components/DrawerContent.vue'
 import DrawerOverlay from '../src/components/DrawerOverlay.vue'
 import { useDrawerRootContext } from '../src/utils/drawerContext'
@@ -87,6 +88,39 @@ const NestedInstantHarness = defineComponent({
 	`,
 })
 
+const CloseScopeHarness = defineComponent({
+	components: {
+		DrawerClose,
+		DrawerContent,
+		DrawerOverlay,
+		DrawerRoot,
+		DrawerRootNested,
+	},
+	setup() {
+		const open = ref(true)
+		const childOpen = ref(true)
+
+		return {
+			open,
+			childOpen,
+		}
+	},
+	template: `
+		<DrawerRoot v-model:open="open">
+			<DrawerOverlay />
+			<DrawerContent aria-label="Parent drawer">
+				<DrawerRootNested v-model:open="childOpen">
+					<DrawerOverlay />
+					<DrawerContent aria-label="Nested drawer">
+						<DrawerClose class="close-current">Close nested</DrawerClose>
+						<DrawerClose class="close-all" scope="all">Close all</DrawerClose>
+					</DrawerContent>
+				</DrawerRootNested>
+			</DrawerContent>
+		</DrawerRoot>
+	`,
+})
+
 describe('DrawerRootNested', () => {
 	it('forces nested drawers closed when the parent drawer closes', async () => {
 		const wrapper = mount(Harness)
@@ -97,6 +131,27 @@ describe('DrawerRootNested', () => {
 		await nextTick()
 		await nextTick()
 
+		expect((wrapper.vm as unknown as { childOpen: boolean }).childOpen).toBe(false)
+	})
+
+	it('keeps DrawerClose scoped to the current nested drawer by default', async () => {
+		const wrapper = mount(CloseScopeHarness)
+
+		await wrapper.get('.close-current').trigger('click')
+		await nextTick()
+
+		expect((wrapper.vm as unknown as { open: boolean }).open).toBe(true)
+		expect((wrapper.vm as unknown as { childOpen: boolean }).childOpen).toBe(false)
+	})
+
+	it('lets DrawerClose close the whole nested stack with scope all', async () => {
+		const wrapper = mount(CloseScopeHarness)
+
+		await wrapper.get('.close-all').trigger('click')
+		await nextTick()
+		await nextTick()
+
+		expect((wrapper.vm as unknown as { open: boolean }).open).toBe(false)
 		expect((wrapper.vm as unknown as { childOpen: boolean }).childOpen).toBe(false)
 	})
 

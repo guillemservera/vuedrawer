@@ -381,6 +381,10 @@ select {
 	z-index: 40;
 }
 
+.demo-overlay--nested {
+	z-index: 60;
+}
+
 .demo-overlay--styled {
 	background: var(--demo-overlay);
 }
@@ -389,6 +393,10 @@ select {
 	outline: none;
 	position: fixed;
 	z-index: 50;
+}
+
+.demo-content--nested {
+	z-index: 70;
 }
 
 .demo-content--bottom {
