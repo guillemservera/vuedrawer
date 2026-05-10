@@ -400,8 +400,8 @@ select {
 }
 
 .demo-content[data-snap-points='true'].demo-content--bottom {
-	height: min(88dvh, 680px);
-	max-height: min(88dvh, 680px);
+	height: 100dvh;
+	max-height: 100dvh;
 }
 
 .demo-content--right {
@@ -428,8 +428,8 @@ select {
 }
 
 .demo-content[data-snap-points='true'].demo-content--top {
-	height: min(88dvh, 680px);
-	max-height: min(88dvh, 680px);
+	height: 100dvh;
+	max-height: 100dvh;
 }
 
 .demo-content[data-snap-points='true'].demo-content--left,

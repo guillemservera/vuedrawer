@@ -22,7 +22,7 @@ const snapPoints: DrawerSnapPoint[] = ['160px', 0.55, 0.9]
 
 		<DrawerPortal>
 			<DrawerOverlay class="fixed inset-0 z-40 bg-black/40" />
-			<DrawerContent class="fixed inset-x-0 bottom-0 z-50 mx-auto grid h-[88dvh] max-h-[680px] max-w-xl gap-4 rounded-t-2xl bg-white p-6 shadow-2xl outline-none">
+			<DrawerContent class="fixed inset-x-0 bottom-0 z-50 mx-auto grid h-[100dvh] max-h-[100dvh] max-w-xl gap-4 rounded-t-2xl bg-white p-6 shadow-2xl outline-none">
 				<DrawerHandle class="mx-auto h-1.5 w-12 rounded-full bg-zinc-300" />
 				<DrawerTitle class="text-lg font-semibold">Snap points</DrawerTitle>
 				<p>Active: {{ activeSnapPoint }}</p>

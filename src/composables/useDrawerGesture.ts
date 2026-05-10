@@ -40,6 +40,7 @@ interface UseDrawerGestureOptions {
 	getContentTransition: (options?: { instant?: boolean }) => string
 	getOverlayTransition: (options?: { instant?: boolean }) => string
 	getVisibleDrawerSize: () => number
+	getSnapPointBaseSize: () => number
 	getSnapPointsOffset: () => number[]
 	getRestingOffset: () => number
 	getRestingOverlayOpacity: () => number
@@ -74,6 +75,7 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 		getContentTransition,
 		getOverlayTransition,
 		getVisibleDrawerSize,
+		getSnapPointBaseSize,
 		getSnapPointsOffset,
 		getRestingOffset,
 		getRestingOverlayOpacity,
@@ -339,7 +341,7 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 		if (!content) return
 
 		const overlay = overlayElement.value
-		const drawerSize = getVisibleDrawerSize()
+		const drawerSize = hasSnapPoints.value ? getSnapPointBaseSize() : getVisibleDrawerSize()
 		const closeProgress = Math.min(Math.max(offset, 0) / drawerSize, 1)
 
 		content.style.transition = 'none'
@@ -521,7 +523,7 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 		const closeDistance = rawDistance * getCloseDirectionSign(direction.value)
 		const elapsed = Math.max(performance.now() - pointerStartTime.value, 1)
 		const velocity = closeDistance / elapsed
-		const drawerSize = getVisibleDrawerSize()
+		const drawerSize = hasSnapPoints.value ? getSnapPointBaseSize() : getVisibleDrawerSize()
 		logDrawerDebug(debugId, 'gesture:finalize', {
 			axisDistance: Math.round(axisDistance),
 			closeDistance: Math.round(closeDistance),
@@ -688,11 +690,12 @@ export function useDrawerGesture(options: UseDrawerGestureOptions) {
 		if (hasSnapPoints.value) {
 			const snapPointsOffset = getSnapPointsOffset()
 			const minOffset = snapPointsOffset[snapPointsOffset.length - 1] ?? 0
-			const maxOffset = dismissible.value ? getVisibleDrawerSize() : (snapPointsOffset[0] ?? dragBaseOffset.value)
+			const snapPointBaseSize = getSnapPointBaseSize()
+			const maxOffset = dismissible.value ? snapPointBaseSize : (snapPointsOffset[0] ?? dragBaseOffset.value)
 			const offset = clamp(dragBaseOffset.value + closeDistance, minOffset, maxOffset)
 			currentOffset.value = offset
 			setDraggingStyles(offset)
-			emitDrag(event, Math.min(Math.max(offset, 0) / getVisibleDrawerSize(), 1))
+			emitDrag(event, Math.min(Math.max(offset, 0) / snapPointBaseSize, 1))
 			return
 		}
 

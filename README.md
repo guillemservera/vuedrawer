@@ -140,7 +140,7 @@ Use `DrawerRootNested` instead of setting `nested` manually for nested drawers.
 
 `repositionInputs` keeps focused inputs inside a bottom drawer visible when Mobile Safari changes the visual viewport for the keyboard. `fixed` changes that keyboard behavior by shrinking the drawer height instead of preserving the full drawer height above the keyboard.
 
-`snapPoints` accepts percentages (`0.55`) or pixel/rem strings (`'280px'`, `'18rem'`). Values should go from least visible to most visible, for example `['160px', 0.55, 0.92]`. `activeSnapPoint` can be controlled with `v-model:active-snap-point`. `fadeFromIndex` controls when the overlay starts fading in across snap points.
+`snapPoints` accepts percentages (`0.55`) or pixel/rem strings (`'280px'`, `'18rem'`). Percentage values are resolved against the viewport axis, or against the custom `container` axis when one is provided, matching Vaul's snap point semantics. Values should go from least visible to most visible, for example `['160px', 0.55, 0.92]`. `activeSnapPoint` can be controlled with `v-model:active-snap-point`. `fadeFromIndex` controls when the overlay starts fading in across snap points.
 
 `snapToSequentialPoint=false` matches Vaul's fast-swipe behavior: a strong close-direction swipe can skip intermediate snap points and close. Set `snapToSequentialPoint=true` when every release should move at most one snap point.
 
@@ -296,7 +296,7 @@ VueDrawer uses neutral classes and data attributes:
 
 The package CSS intentionally does not include colors, shadows, borders, spacing, border radius or typography.
 
-For percentage snap points, give the drawer content a stable height or width on the snap axis. This keeps values like `0.55` independent from padding, borders or style variants.
+For percentage snap points, size the drawer content along the snap axis so it can cover the largest requested snap point, for example a bottom drawer with `height: min(100dvh, 720px)` or a full-height side drawer.
 
 Animation can be tuned with CSS variables on your drawer content and overlay:
 
@@ -313,7 +313,7 @@ Animation can be tuned with CSS variables on your drawer content and overlay:
 
 `--drawer-duration` and `--drawer-duration-ms` should represent the same value; the `ms` variant is used by gesture-driven inline transitions.
 
-When page scroll is locked on desktop, VueDrawer sets `--vuedrawer-scrollbar-width` on `:root` and compensates `document.body` padding so fixed layouts do not jump.
+When page scroll is locked on desktop, VueDrawer keeps the lock active until the close transition finishes, sets `--vuedrawer-scrollbar-width` on `:root`, and compensates `document.body` padding so fixed layouts do not jump. If the host page uses `scrollbar-gutter: stable`, VueDrawer temporarily normalizes the root gutter while locked so the scrollbar space is not reserved twice.
 
 ## Examples
 

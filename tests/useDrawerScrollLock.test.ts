@@ -288,6 +288,30 @@ describe('useDrawerScrollLock', () => {
 		wrapper.unmount()
 	})
 
+	it('temporarily removes stable root scrollbar gutter while desktop scroll is locked', async () => {
+		stubDesktopChrome()
+		Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1200 })
+		Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, value: 1184 })
+		document.documentElement.style.setProperty('scrollbar-gutter', 'stable')
+		const wrapper = mount(TestHarness)
+
+		;(wrapper.vm as unknown as { setOpen: (value: boolean) => void }).setOpen(true)
+		await nextTick()
+
+		expect(document.documentElement.style.getPropertyValue('scrollbar-gutter')).toBe('auto')
+		expect(document.body.style.paddingRight).toBe('16px')
+		expect(document.documentElement.style.getPropertyValue('--vuedrawer-scrollbar-width')).toBe('16px')
+
+		;(wrapper.vm as unknown as { setOpen: (value: boolean) => void }).setOpen(false)
+		await nextTick()
+
+		expect(document.documentElement.style.getPropertyValue('scrollbar-gutter')).toBe('stable')
+		expect(document.body.style.paddingRight).toBe('')
+		expect(document.documentElement.style.getPropertyValue('--vuedrawer-scrollbar-width')).toBe('')
+
+		wrapper.unmount()
+	})
+
 	it('restores page scrolling when a non-iOS modal drawer closes', async () => {
 		stubDesktopChrome()
 		document.documentElement.style.overflow = 'auto'

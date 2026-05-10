@@ -102,6 +102,7 @@ const {
 	getContentTransition: root.getContentTransition,
 	getOverlayTransition: root.getOverlayTransition,
 	getVisibleDrawerSize: root.getVisibleDrawerSize,
+	getSnapPointBaseSize: root.getSnapPointBaseSize,
 	getSnapPointsOffset: root.getSnapPointsOffset,
 	getRestingOffset: root.getRestingOffset,
 	getRestingOverlayOpacity: root.getRestingOverlayOpacity,

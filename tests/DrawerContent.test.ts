@@ -60,6 +60,7 @@ const rootContext = vi.hoisted(() => {
 			getContentTransition: vi.fn(() => 'transform 220ms ease'),
 		getOverlayTransition: vi.fn(() => 'opacity 220ms ease'),
 		getVisibleDrawerSize: vi.fn(() => 320),
+		getSnapPointBaseSize: vi.fn(() => 640),
 		getSnapPointsOffset: vi.fn(() => []),
 		getRestingOffset: vi.fn(() => 0),
 		getRestingOverlayOpacity: vi.fn(() => 1),

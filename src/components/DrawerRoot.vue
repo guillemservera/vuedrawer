@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue'
 import {
 	DRAWER_DEFAULT_CLOSE_THRESHOLD,
 	DRAWER_DEFAULT_SCROLL_LOCK_TIMEOUT,
@@ -54,6 +54,7 @@ const contentElement = ref<HTMLElement | null>(null)
 const overlayElement = ref<HTMLElement | null>(null)
 const isDragging = ref(false)
 const gestureClosing = ref(false)
+const scrollLockOpen = ref(props.open ?? props.defaultOpen)
 const skipCloseAnimation = ref(false)
 const closeAnimationOverride = ref<DrawerAnimation | null>(null)
 const preventCloseAutoFocusOnce = ref(false)
@@ -248,9 +249,48 @@ function getVisibleDrawerSize() {
 	return Math.max(rawSize, 1)
 }
 
+function getSnapPointContainerElement() {
+	if (typeof document === 'undefined') return null
+	const container = props.container
+	if (container instanceof HTMLElement) {
+		return isDocumentViewportElement(container) ? null : container
+	}
+	if (typeof container !== 'string') return null
+
+	const element = document.querySelector(container)
+	if (!(element instanceof HTMLElement)) return null
+	return isDocumentViewportElement(element) ? null : element
+}
+
+function isDocumentViewportElement(element: HTMLElement) {
+	return element === document.body || element === document.documentElement
+}
+
+function getSnapPointBaseSize() {
+	if (typeof window === 'undefined') return getVisibleDrawerSize()
+
+	const container = getSnapPointContainerElement()
+	if (container) {
+		const rect = container.getBoundingClientRect()
+		const containerSize = props.direction === 'top' || props.direction === 'bottom'
+			? rect.height
+			: rect.width
+
+		if (Number.isFinite(containerSize) && containerSize > 0) {
+			return containerSize
+		}
+	}
+
+	const viewportSize = props.direction === 'top' || props.direction === 'bottom'
+		? window.innerHeight
+		: window.innerWidth
+
+	return Math.max(viewportSize || getVisibleDrawerSize(), 1)
+}
+
 function getSnapPointsOffset() {
 	if (!props.snapPoints?.length) return []
-	return getSnapPointOffsets(getVisibleDrawerSize(), props.snapPoints)
+	return getSnapPointOffsets(getSnapPointBaseSize(), props.snapPoints)
 }
 
 function getRestingOffset() {
@@ -581,6 +621,7 @@ function handleAfterClose() {
 	if (props.nested) {
 		parentContext?.setNestedChildOpen(false)
 	}
+	scrollLockOpen.value = false
 	emit('after-close')
 	emit('animation-end', false)
 }
@@ -634,6 +675,7 @@ provideDrawerRootContext({
 	emitDrag,
 	emitRelease,
 	getVisibleDrawerSize,
+	getSnapPointBaseSize,
 	getSnapPointsOffset,
 	getRestingOffset,
 	getRestingOverlayOpacity,
@@ -657,7 +699,7 @@ provideDrawerRootContext({
 
 useDrawerScrollLock({
 	debugId,
-	open,
+	open: scrollLockOpen,
 	modal: toRef(props, 'modal'),
 	nested: toRef(props, 'nested'),
 	hasBeenOpened,
@@ -696,10 +738,22 @@ watch(() => props.snapPoints, (snapPoints) => {
 
 watch(open, (value, previousValue) => {
 	logDrawerDebug(debugId, 'open-change', { from: previousValue, to: value })
+	if (value) {
+		scrollLockOpen.value = true
+	}
+	else if (previousValue === true && (contentElement.value || gestureClosing.value)) {
+		// Keep document scroll locked until Vue's leave transition has fully removed
+		// the drawer from view. This mirrors Vaul/Radix presence behavior on desktop.
+		scrollLockOpen.value = true
+	}
+	else {
+		scrollLockOpen.value = false
+	}
+
 	if (previousValue === true && value === false) {
 		emit('close')
 	}
-}, { immediate: true })
+}, { flush: 'sync', immediate: true })
 
 watch(isDragging, (value, previousValue) => {
 	if (value === previousValue) return
@@ -765,6 +819,39 @@ watch(contentElement, (element, _previous, onCleanup) => {
 	})
 })
 
+watch(
+	() => [props.container, props.direction] as const,
+	(_value, _previous, onCleanup) => {
+		if (typeof ResizeObserver === 'undefined') return
+		const container = getSnapPointContainerElement()
+		if (!container) return
+
+		const observer = new ResizeObserver(() => {
+			if (hasSnapPoints.value) {
+				syncRestingStyles()
+			}
+		})
+
+		observer.observe(container)
+		onCleanup(() => {
+			observer.disconnect()
+		})
+	},
+	{ flush: 'post', immediate: true },
+)
+
+function handleSnapPointViewportResize() {
+	if (hasSnapPoints.value) {
+		syncRestingStyles()
+	}
+}
+
+onMounted(() => {
+	if (typeof window === 'undefined') return
+	window.addEventListener('resize', handleSnapPointViewportResize)
+	window.visualViewport?.addEventListener('resize', handleSnapPointViewportResize)
+})
+
 watch(open, (isOpen) => {
 	if (isOpen && props.nested) {
 		parentContext?.prepareNestedChildOpen()
@@ -817,6 +904,10 @@ watch(open, (isOpen) => {
 }, { immediate: true })
 
 onBeforeUnmount(() => {
+	if (typeof window !== 'undefined') {
+		window.removeEventListener('resize', handleSnapPointViewportResize)
+		window.visualViewport?.removeEventListener('resize', handleSnapPointViewportResize)
+	}
 	if (props.nested) {
 		parentContext?.setNestedChildOpen(false)
 	}

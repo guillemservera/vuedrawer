@@ -20,6 +20,7 @@ interface DocumentScrollSnapshot {
 	htmlOverflow: string
 	bodyOverflow: string
 	bodyPaddingRight: string
+	htmlScrollbarGutter: string
 	scrollbarWidthProperty: string
 }
 
@@ -80,6 +81,10 @@ function canLockDocumentScroll() {
 	return !isIOSBrowser()
 }
 
+function hasStableScrollbarGutter(value: string) {
+	return value.split(/\s+/).includes('stable')
+}
+
 function isKeyboardInput(target: EventTarget | null): target is HTMLElement {
 	if (!(target instanceof HTMLElement)) return false
 	if (target instanceof HTMLTextAreaElement) return true
@@ -93,23 +98,28 @@ function lockDocumentScroll() {
 	if (!canLockDocumentScroll()) return
 
 	if (documentScrollLockCount === 0) {
+		const root = document.documentElement
 		const scrollbarWidth = Math.max(window.innerWidth - document.documentElement.clientWidth, 0)
 		previousDocumentScroll = {
-			htmlOverflow: document.documentElement.style.overflow,
+			htmlOverflow: root.style.overflow,
 			bodyOverflow: document.body.style.overflow,
 			bodyPaddingRight: document.body.style.paddingRight,
-			scrollbarWidthProperty: document.documentElement.style.getPropertyValue('--vuedrawer-scrollbar-width'),
+			htmlScrollbarGutter: root.style.getPropertyValue('scrollbar-gutter'),
+			scrollbarWidthProperty: root.style.getPropertyValue('--vuedrawer-scrollbar-width'),
 		}
 
 		// Body fixed handles the Mobile Safari bugs, but the document overflow lock
 		// is what removes the page scrollbar and prevents desktop/root scrolling.
+		if (hasStableScrollbarGutter(window.getComputedStyle(root).getPropertyValue('scrollbar-gutter'))) {
+			root.style.setProperty('scrollbar-gutter', 'auto')
+		}
 		if (scrollbarWidth > 0) {
 			const currentPaddingRight = Number.parseFloat(window.getComputedStyle(document.body).paddingRight)
 			const nextPaddingRight = (Number.isFinite(currentPaddingRight) ? currentPaddingRight : 0) + scrollbarWidth
 			document.body.style.paddingRight = `${nextPaddingRight}px`
-			document.documentElement.style.setProperty('--vuedrawer-scrollbar-width', `${scrollbarWidth}px`)
+			root.style.setProperty('--vuedrawer-scrollbar-width', `${scrollbarWidth}px`)
 		}
-		document.documentElement.style.overflow = 'hidden'
+		root.style.overflow = 'hidden'
 		document.body.style.overflow = 'hidden'
 	}
 
@@ -126,6 +136,12 @@ function restoreDocumentScroll() {
 	document.documentElement.style.overflow = previousDocumentScroll.htmlOverflow
 	document.body.style.overflow = previousDocumentScroll.bodyOverflow
 	document.body.style.paddingRight = previousDocumentScroll.bodyPaddingRight
+	if (previousDocumentScroll.htmlScrollbarGutter) {
+		document.documentElement.style.setProperty('scrollbar-gutter', previousDocumentScroll.htmlScrollbarGutter)
+	}
+	else {
+		document.documentElement.style.removeProperty('scrollbar-gutter')
+	}
 	if (previousDocumentScroll.scrollbarWidthProperty) {
 		document.documentElement.style.setProperty('--vuedrawer-scrollbar-width', previousDocumentScroll.scrollbarWidthProperty)
 	}

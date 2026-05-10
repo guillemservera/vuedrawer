@@ -120,6 +120,7 @@ export interface DrawerRootContext {
 	emitDrag: (pointerEvent: PointerEvent, percentageDragged: number) => void
 	emitRelease: (pointerEvent: PointerEvent, open: boolean) => void
 	getVisibleDrawerSize: () => number
+	getSnapPointBaseSize: () => number
 	getSnapPointsOffset: () => number[]
 	getRestingOffset: () => number
 	getRestingOverlayOpacity: () => number

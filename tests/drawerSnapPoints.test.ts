@@ -9,7 +9,7 @@ import {
 } from '../src/utils/drawerSnapPoints'
 
 describe('drawerSnapPoints', () => {
-	it('resolves percentage and pixel snap points against the current drawer size', () => {
+	it('resolves percentage and pixel snap points against the snap axis size', () => {
 		expect(resolveSnapPointSize(400, 0.5)).toBe(200)
 		expect(resolveSnapPointSize(400, '120px')).toBe(120)
 		expect(resolveSnapPointSize(400, '7rem')).toBe(112)
