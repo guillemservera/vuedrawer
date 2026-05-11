@@ -1,6 +1,5 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Ref } from 'vue'
-import { logDrawerDebug } from '../utils/drawerDebug'
 import { isSafariBrowser } from '../utils/drawerDom'
 
 interface BodyPositionSnapshot {
@@ -25,7 +24,6 @@ interface DocumentScrollSnapshot {
 }
 
 interface UseDrawerScrollLockOptions {
-	debugId: string
 	open: Ref<boolean>
 	modal: Ref<boolean>
 	nested: Ref<boolean>
@@ -181,7 +179,6 @@ function restoreDocumentOverscroll() {
 
 export function useDrawerScrollLock(options: UseDrawerScrollLockOptions) {
 	const {
-		debugId,
 		open,
 		modal,
 		nested,
@@ -279,9 +276,6 @@ export function useDrawerScrollLock(options: UseDrawerScrollLockOptions) {
 	}
 
 	function clearTouchScrollGuard() {
-		if (removeTouchScrollGuard.value) {
-			logDrawerDebug(debugId, 'scroll-guard:remove')
-		}
 		removeTouchScrollGuard.value?.()
 		removeTouchScrollGuard.value = null
 	}
@@ -290,7 +284,6 @@ export function useDrawerScrollLock(options: UseDrawerScrollLockOptions) {
 		if (typeof document === 'undefined' || typeof window === 'undefined') return
 		if (!isIOSBrowser()) return
 		if (removeTouchScrollGuard.value) return
-		logDrawerDebug(debugId, 'scroll-guard:register')
 
 		let scrollable: Element | null = null
 		let horizontalPanContainer: Element | null = null
@@ -375,7 +368,6 @@ export function useDrawerScrollLock(options: UseDrawerScrollLockOptions) {
 			}
 
 			if (!(target instanceof Element) || !drawer?.contains(target)) {
-				logDrawerDebug(debugId, 'scroll-guard:prevent', { reason: 'outside-drawer' })
 				event.preventDefault()
 				return
 			}
@@ -390,13 +382,11 @@ export function useDrawerScrollLock(options: UseDrawerScrollLockOptions) {
 			}
 
 			if (scrollable === document.documentElement || scrollable === document.body) {
-				logDrawerDebug(debugId, 'scroll-guard:prevent', { reason: 'document-scroll-parent' })
 				event.preventDefault()
 				return
 			}
 
 			if (!scrollable || !drawer.contains(scrollable)) {
-				logDrawerDebug(debugId, 'scroll-guard:prevent', { reason: 'no-scroll-parent' })
 				event.preventDefault()
 				return
 			}
@@ -412,13 +402,6 @@ export function useDrawerScrollLock(options: UseDrawerScrollLockOptions) {
 			}
 
 			if ((scrollTop <= 0 && y > lastY) || (scrollTop >= bottom && y < lastY)) {
-				logDrawerDebug(debugId, 'scroll-guard:prevent', {
-					reason: 'edge-bounce',
-					scrollTop,
-					bottom,
-					y,
-					lastY,
-				})
 				event.preventDefault()
 			}
 
@@ -492,14 +475,12 @@ export function useDrawerScrollLock(options: UseDrawerScrollLockOptions) {
 			// into viewport pull-to-refresh. Keep that protection for the full drawer lifetime.
 			lockDocumentOverscroll()
 			hasDocumentOverscrollLock.value = true
-			logDrawerDebug(debugId, 'document-overscroll:lock')
 			return
 		}
 
 		if (!shouldLock && hasDocumentOverscrollLock.value) {
 			restoreDocumentOverscroll()
 			hasDocumentOverscrollLock.value = false
-			logDrawerDebug(debugId, 'document-overscroll:restore')
 		}
 	}
 
@@ -509,14 +490,12 @@ export function useDrawerScrollLock(options: UseDrawerScrollLockOptions) {
 		if (canLock && !hasDocumentScrollLock.value) {
 			lockDocumentScroll()
 			hasDocumentScrollLock.value = true
-			logDrawerDebug(debugId, 'document-scroll:lock')
 			return
 		}
 
 		if (!canLock && hasDocumentScrollLock.value) {
 			restoreDocumentScroll()
 			hasDocumentScrollLock.value = false
-			logDrawerDebug(debugId, 'document-scroll:restore')
 		}
 	}
 

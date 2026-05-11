@@ -15,13 +15,6 @@ vi.mock('../src/composables/useDrawerScrollLock', () => ({
 	useDrawerScrollLock: () => undefined,
 }))
 
-vi.mock('../src/utils/drawerDebug', () => ({
-	createDrawerDebugId: () => 'bottom#test',
-	ensureDrawerDebugPanel: () => undefined,
-	isDrawerDebugEnabled: () => false,
-	logDrawerDebug: () => undefined,
-}))
-
 describe('Drawer accessibility primitives', () => {
 	beforeEach(() => {
 		vi.spyOn(console, 'warn').mockImplementation(() => undefined)

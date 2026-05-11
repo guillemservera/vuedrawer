@@ -8,13 +8,6 @@ vi.mock('../src/composables/useDrawerScrollLock', () => ({
 	useDrawerScrollLock: () => undefined,
 }))
 
-vi.mock('../src/utils/drawerDebug', () => ({
-	createDrawerDebugId: () => 'bottom#test',
-	ensureDrawerDebugPanel: () => undefined,
-	isDrawerDebugEnabled: () => false,
-	logDrawerDebug: () => undefined,
-}))
-
 describe('Drawer', () => {
 	it('emits content:error and closes when a child throws during render', async () => {
 		const Boom = defineComponent({

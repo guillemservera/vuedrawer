@@ -10,12 +10,20 @@ import {
 	getTranslateStyles,
 } from '../utils/drawerConstants'
 import { provideDrawerRootContext, useOptionalDrawerRootContext } from '../utils/drawerContext'
-import { createDrawerDebugId, ensureDrawerDebugPanel, isDrawerDebugEnabled, logDrawerDebug } from '../utils/drawerDebug'
 import { restoreBodyPointerEvents, scheduleBodyPointerEventsRestore, waitForDrawerTransition } from '../utils/drawerDom'
 import { getActiveSnapPointIndex, getOverlayOpacityForOffset, getSnapPointOffsets } from '../utils/drawerSnapPoints'
 import type { DrawerAnimation, DrawerRootEmits, DrawerRootProps, DrawerSnapPoint } from '../utils/drawerTypes'
 import { useDrawerInputReposition } from '../composables/useDrawerInputReposition'
 import { useDrawerScrollLock } from '../composables/useDrawerScrollLock'
+
+let nextDrawerId = 1
+
+function createDrawerId(direction: string, nested: boolean) {
+	const label = nested ? `${direction}-nested` : direction
+	const id = nextDrawerId
+	nextDrawerId += 1
+	return `${label}#${id}`
+}
 
 const props = withDefaults(defineProps<DrawerRootProps>(), {
 	open: undefined,
@@ -61,8 +69,8 @@ const skipCloseAnimation = ref(false)
 const closeAnimationOverride = ref<DrawerAnimation | null>(null)
 const preventCloseAutoFocusOnce = ref(false)
 const nestedChildOpen = ref(false)
-const debugId = createDrawerDebugId(props.direction, props.nested)
-const domIdBase = `vuedrawer-${debugId.replace(/[^a-zA-Z0-9_-]+/g, '-').toLowerCase()}`
+const drawerId = createDrawerId(props.direction, props.nested)
+const domIdBase = `vuedrawer-${drawerId.replace(/[^a-zA-Z0-9_-]+/g, '-').toLowerCase()}`
 const defaultContentId = `${domIdBase}-content`
 const defaultTitleId = `${domIdBase}-title`
 const defaultDescriptionId = `${domIdBase}-description`
@@ -83,7 +91,7 @@ const open = computed({
 		// Auto-detect instant close before updating the value so Vue's
 		// <Transition> picks up skipCloseAnimation in the same render cycle
 		if (!value) {
-			maybeEnableSkipCloseAnimation('computed-set')
+			maybeEnableSkipCloseAnimation()
 		}
 		if (props.open === undefined) {
 			uncontrolledOpen.value = value
@@ -93,16 +101,6 @@ const open = computed({
 })
 
 const hasSnapPoints = computed(() => (props.snapPoints?.length ?? 0) > 0)
-if (isDrawerDebugEnabled()) {
-	ensureDrawerDebugPanel()
-	logDrawerDebug(debugId, 'init', {
-		direction: props.direction,
-		nested: props.nested,
-		modal: props.modal,
-		dismissible: props.dismissible,
-		hasSnapPoints: hasSnapPoints.value,
-	})
-}
 
 const modelActiveSnapPoint = computed(() => props.activeSnapPoint ?? uncontrolledActiveSnapPoint.value)
 const activeSnapPoint = computed<DrawerSnapPoint | null>(() => {
@@ -128,10 +126,9 @@ const shouldFadeOverlay = computed(() => {
 	return fadeIndex !== undefined && activeSnapPointIndex.value === fadeIndex
 })
 
-function maybeEnableSkipCloseAnimation(source: 'computed-set' | 'request-open-change' | 'watch-close') {
+function maybeEnableSkipCloseAnimation() {
 	if (props.instantClose) {
 		skipCloseAnimation.value = true
-		logDrawerDebug(debugId, 'auto-instant-close', { durationMs: 1, via: source, forced: true })
 		return true
 	}
 
@@ -144,7 +141,6 @@ function maybeEnableSkipCloseAnimation(source: 'computed-set' | 'request-open-ch
 	}
 
 	skipCloseAnimation.value = true
-	logDrawerDebug(debugId, 'auto-instant-close', { durationMs, via: source })
 	return true
 }
 
@@ -212,21 +208,13 @@ function emitRelease(pointerEvent: PointerEvent, isOpen: boolean) {
 }
 
 function requestOpenChange(value: boolean, options: { animation?: DrawerAnimation } = {}) {
-	logDrawerDebug(debugId, 'requestOpenChange', {
-		from: open.value,
-		to: value,
-		gestureClosing: gestureClosing.value,
-		isDragging: isDragging.value,
-		animation: options.animation,
-	})
-
 	if (!value) {
 		closeAnimationOverride.value = options.animation ?? null
 		// Auto-detect instant close: if the consumer set a very short transition
 		// duration via --drawer-duration-ms, skip the close animation so Vue's
 		// <Transition> uses the --instant class (1ms) which guarantees
 		// transitionend fires without a visible animation frame.
-		maybeEnableSkipCloseAnimation('request-open-change')
+		maybeEnableSkipCloseAnimation()
 	}
 
 	open.value = value
@@ -514,11 +502,6 @@ function handleContentError(error: unknown, instance: unknown, info: string) {
 }
 
 function resetInteractiveState() {
-	logDrawerDebug(debugId, 'resetInteractiveState', {
-		open: open.value,
-		gestureClosing: gestureClosing.value,
-		isDragging: isDragging.value,
-	})
 	const content = contentElement.value
 	const overlay = overlayElement.value
 
@@ -543,18 +526,12 @@ function resetInteractiveState() {
 }
 
 function setGestureClosing(value: boolean) {
-	logDrawerDebug(debugId, 'setGestureClosing', {
-		value,
-		open: open.value,
-		isDragging: isDragging.value,
-	})
 	gestureClosing.value = value
 	if (!value) return
 	isDragging.value = false
 }
 
 function setSkipCloseAnimation(value: boolean) {
-	logDrawerDebug(debugId, 'setSkipCloseAnimation', { value })
 	skipCloseAnimation.value = value
 }
 
@@ -573,7 +550,6 @@ function forceInstantCloseFromParent() {
 }
 
 function handleAfterOpen() {
-	logDrawerDebug(debugId, 'after-open')
 	if (!open.value) return
 	gestureClosing.value = false
 	skipCloseAnimation.value = false
@@ -584,7 +560,6 @@ function handleAfterOpen() {
 }
 
 function handleAfterClose() {
-	logDrawerDebug(debugId, 'after-close')
 	if (open.value) return
 	resetInteractiveState()
 	restoreBodyPointerEvents()
@@ -603,7 +578,7 @@ function handleAfterClose() {
 }
 
 provideDrawerRootContext({
-	debugId,
+	drawerId,
 	open,
 	hasBeenOpened,
 	modal: toRef(props, 'modal'),
@@ -672,7 +647,6 @@ provideDrawerRootContext({
 })
 
 useDrawerScrollLock({
-	debugId,
 	open: scrollLockOpen,
 	modal: toRef(props, 'modal'),
 	nested: toRef(props, 'nested'),
@@ -711,7 +685,6 @@ watch(() => props.snapPoints, (snapPoints) => {
 }, { immediate: true })
 
 watch(open, (value, previousValue) => {
-	logDrawerDebug(debugId, 'open-change', { from: previousValue, to: value })
 	if (value) {
 		scrollLockOpen.value = true
 	}
@@ -729,19 +702,8 @@ watch(open, (value, previousValue) => {
 	}
 }, { flush: 'sync', immediate: true })
 
-watch(isDragging, (value, previousValue) => {
-	if (value === previousValue) return
-	logDrawerDebug(debugId, 'dragging-change', { from: previousValue, to: value })
-})
-
-watch(gestureClosing, (value, previousValue) => {
-	if (value === previousValue) return
-	logDrawerDebug(debugId, 'gestureClosing-change', { from: previousValue, to: value })
-})
-
 watch(activeSnapPoint, (value, previousValue) => {
 	if (value === previousValue) return
-	logDrawerDebug(debugId, 'activeSnapPoint-change', { from: previousValue, to: value })
 
 	if (skipNextActiveSnapPointAnimation) {
 		skipNextActiveSnapPointAnimation = false
@@ -764,11 +726,6 @@ watch(
 			|| isParentOpen !== false
 			|| (!open.value && !contentElement.value && !gestureClosing.value)
 		) return
-
-		logDrawerDebug(debugId, 'parent-close:force-child-close', {
-			parentOpen: isParentOpen,
-			childOpen: open.value,
-		})
 
 		forceInstantCloseFromParent()
 	},
@@ -853,7 +810,7 @@ watch(open, (isOpen) => {
 		clearNestedParentTransform()
 	}
 
-	maybeEnableSkipCloseAnimation('watch-close')
+	maybeEnableSkipCloseAnimation()
 
 	if (props.nested) {
 		parentContext?.setNestedChildOpen(false)

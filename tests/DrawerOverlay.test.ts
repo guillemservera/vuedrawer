@@ -11,13 +11,6 @@ vi.mock('../src/composables/useDrawerScrollLock', () => ({
 	useDrawerScrollLock: () => undefined,
 }))
 
-vi.mock('../src/utils/drawerDebug', () => ({
-	createDrawerDebugId: () => 'bottom#test',
-	ensureDrawerDebugPanel: () => undefined,
-	isDrawerDebugEnabled: () => false,
-	logDrawerDebug: () => undefined,
-}))
-
 const ContextProbe = defineComponent({
 	setup(_, { expose }) {
 		const root = useDrawerRootContext()

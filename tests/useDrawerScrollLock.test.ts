@@ -15,7 +15,6 @@ const TestHarness = defineComponent({
 			const contentElement = ref<HTMLElement | null>(null)
 
 			useDrawerScrollLock({
-			debugId: 'bottom#test',
 			open,
 				modal,
 				nested,

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, useAttrs } from 'vue'
-import { logDrawerDebug } from '../utils/drawerDebug'
 import { useDrawerRootContext } from '../utils/drawerContext'
 
 defineOptions({
@@ -32,7 +31,6 @@ function assignOverlayRef(el: unknown) {
 
 function handleOverlayPointerDown(event: PointerEvent) {
 	if (event.target !== event.currentTarget) return
-	logDrawerDebug(root.debugId, 'overlay:pointerdown')
 	if (!root.modal.value) return
 	root.handleDismissAttempt(event)
 	if (event.defaultPrevented || !root.dismissible.value) return

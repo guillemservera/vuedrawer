@@ -39,10 +39,6 @@ const {
 	}
 })
 
-vi.mock('../src/utils/drawerDebug', () => ({
-	logDrawerDebug: () => undefined,
-}))
-
 vi.mock('../src/utils/drawerDom', async () => {
 	const actual = await vi.importActual<typeof import('../src/utils/drawerDom')>('../src/utils/drawerDom')
 	return {
@@ -111,7 +107,6 @@ describe('useDrawerGesture', () => {
 				})
 
 				const gesture = useDrawerGesture({
-					debugId: 'bottom#test',
 					open,
 					openedAt: ref(Date.now() - 1000),
 					direction: ref('bottom'),
@@ -228,7 +223,6 @@ describe('useDrawerGesture', () => {
 				const skipCloseAnimation = ref(false)
 
 				const gesture = useDrawerGesture({
-					debugId: 'bottom#test',
 					open,
 					openedAt: ref(Date.now() - 1000),
 					direction: ref('bottom'),
@@ -347,7 +341,6 @@ describe('useDrawerGesture', () => {
 				const resetInteractiveState = vi.fn()
 
 				const gesture = useDrawerGesture({
-					debugId: 'bottom#test',
 					open,
 					openedAt: ref(Date.now() - 1000),
 					direction: ref('bottom'),
@@ -483,7 +476,6 @@ describe('useDrawerGesture', () => {
 				})
 
 				const gesture = useDrawerGesture({
-					debugId: 'bottom#test',
 					open,
 					openedAt: ref(Date.now() - 1000),
 					direction: ref('bottom'),
@@ -592,7 +584,6 @@ describe('useDrawerGesture', () => {
 				})
 
 				const gesture = useDrawerGesture({
-					debugId: 'bottom#test',
 					open,
 					openedAt: ref(Date.now() - 1000),
 					direction: ref('bottom'),

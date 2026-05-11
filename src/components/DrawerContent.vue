@@ -7,7 +7,6 @@ import { useDrawerFocusScope } from '../composables/useDrawerFocusScope'
 import { useDrawerGesture } from '../composables/useDrawerGesture'
 import { ESCAPE_LAYER_PRIORITIES, useDrawerEscapeLayer } from '../composables/useDrawerEscapeLayer'
 import { useDrawerRootContext } from '../utils/drawerContext'
-import { logDrawerDebug } from '../utils/drawerDebug'
 import { provideDrawerGestureContext } from '../utils/drawerGestureContext'
 import type { DrawerContentEmits } from '../utils/drawerTypes'
 
@@ -78,7 +77,6 @@ const {
 	handlePointerCancel,
 	handleLostPointerCapture,
 } = useDrawerGesture({
-	debugId: root.debugId,
 	open: root.open,
 	openedAt: root.openedAt,
 	direction: root.direction,
@@ -126,7 +124,7 @@ useDrawerAriaIsolation({
 })
 
 useDrawerDismissableLayer({
-	id: `drawer:${root.debugId}`,
+	id: `drawer:${root.drawerId}`,
 	element: contentRef,
 	enabled: () => root.open.value,
 	modal: () => root.modal.value,
@@ -219,8 +217,8 @@ onBeforeUnmount(() => {
 })
 
 useDrawerEscapeLayer({
-	id: `drawer:${root.debugId}`,
-	label: root.debugId,
+	id: `drawer:${root.drawerId}`,
+	label: root.drawerId,
 	priority: ESCAPE_LAYER_PRIORITIES.drawer,
 	enabled: () => root.open.value,
 	onEscape: (event) => {
@@ -238,7 +236,6 @@ useDrawerEscapeLayer({
 
 function handleTrackedPointerDown(event: PointerEvent) {
 	lastKnownPointerEvent.value = event
-	logDrawerDebug(root.debugId, 'content:pointerdown', { pointerId: event.pointerId })
 	if (root.handleOnly.value) return
 	handlePointerDown(event)
 }
@@ -251,7 +248,6 @@ function handleTrackedPointerMove(event: PointerEvent) {
 
 function handleTrackedPointerUp(event: PointerEvent) {
 	lastKnownPointerEvent.value = null
-	logDrawerDebug(root.debugId, 'content:pointerup', { pointerId: event.pointerId })
 	handlePointerUp(event)
 }
 
@@ -263,9 +259,6 @@ function handlePointerOut(event: PointerEvent) {
 	}
 
 	if (!lastKnownPointerEvent.value) return
-	logDrawerDebug(root.debugId, 'content:pointerout-release', {
-		pointerId: lastKnownPointerEvent.value.pointerId,
-	})
 	const pointerEvent = lastKnownPointerEvent.value
 	lastKnownPointerEvent.value = null
 	handlePointerUp(pointerEvent)
@@ -273,9 +266,6 @@ function handlePointerOut(event: PointerEvent) {
 
 function handleContextMenu() {
 	if (!lastKnownPointerEvent.value) return
-	logDrawerDebug(root.debugId, 'content:contextmenu-release', {
-		pointerId: lastKnownPointerEvent.value.pointerId,
-	})
 	const pointerEvent = lastKnownPointerEvent.value
 	lastKnownPointerEvent.value = null
 	handlePointerUp(pointerEvent)
@@ -283,13 +273,11 @@ function handleContextMenu() {
 
 function handleTrackedPointerCancel(event: PointerEvent) {
 	lastKnownPointerEvent.value = null
-	logDrawerDebug(root.debugId, 'content:pointercancel', { pointerId: event.pointerId })
 	handlePointerCancel(event)
 }
 
 function handleTrackedLostPointerCapture(event: PointerEvent) {
 	lastKnownPointerEvent.value = null
-	logDrawerDebug(root.debugId, 'content:lostpointercapture', { pointerId: event.pointerId })
 	handleLostPointerCapture(event)
 }
 </script>

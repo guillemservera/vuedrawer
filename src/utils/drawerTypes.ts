@@ -74,7 +74,7 @@ export interface DrawerContentEmits {
 }
 
 export interface DrawerRootContext {
-	debugId: string
+	drawerId: string
 	open: Ref<boolean>
 	hasBeenOpened: Ref<boolean>
 	modal: Ref<boolean>

@@ -17,7 +17,7 @@ const rootContext = vi.hoisted(() => {
 	const box = <T>(value: T) => ({ value })
 
 	return {
-		debugId: 'bottom#test',
+		drawerId: 'bottom#test',
 		open: box(true),
 		openedAt: box<number | null>(Date.now()),
 			direction: box<'bottom' | 'top' | 'left' | 'right'>('bottom'),
